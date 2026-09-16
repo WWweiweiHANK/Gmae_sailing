@@ -4,15 +4,26 @@ import { route, chooseWeather, seaHeight, advanceWeather, weatherEvents, WEATHER
 import { createAmbientAudio } from './ambient-audio.mjs';
 import { createVoyageEffects } from './scene-effects.mjs';
 import { auroraColorGLSL } from './aurora.mjs';
+import { createDeparture } from './departure.mjs';
 
 const canvas = document.querySelector('#scene');
-function showError(text) { document.querySelector('#loading').hidden=true;const el=document.querySelector('#error');el.hidden=false;el.textContent=text; }
+function showError(text) { document.querySelector('#intro').hidden=true;document.body.dataset.intro='ready';document.querySelector('#voyage-ui').inert=false; document.querySelector('#loading').hidden=true;const el=document.querySelector('#error');el.hidden=false;el.textContent=text; }
 try { start(); } catch (error) { console.error(error);showError('场景未能启动。请使用支持 WebGL 2 的新版浏览器，并开启硬件加速。'); }
 function start() {
 const scene = new THREE.Scene();scene.fog=new THREE.Fog(0xc5d4b8,55,110);
 const soundButton=document.querySelector('#sound');
 function updateSoundButton(active){soundButton.setAttribute('aria-pressed',String(active));soundButton.setAttribute('aria-label',active?'关闭环境音':'开启环境音');soundButton.querySelector('span').textContent=active?'声音开':'听海';document.querySelector('#volume-control').hidden=!active;}
 const ambience=createAmbientAudio(updateSoundButton);
+const departure=createDeparture(()=>ambience.setEnabled(true));
+const intro=document.querySelector('#intro'),launchButton=document.querySelector('#launch'),voyageUI=document.querySelector('#voyage-ui');
+const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
+launchButton.addEventListener('click',async()=>{
+ if(launchButton.disabled)return;
+ launchButton.disabled=true;document.body.dataset.intro='boarding';intro.setAttribute('aria-busy','true');
+ await Promise.all([departure.launch(),new Promise(resolve=>setTimeout(resolve,reducedMotion.matches?0:550))]);
+ intro.setAttribute('aria-busy','false');document.body.dataset.intro='entering';
+ document.querySelector('#status').textContent=departure.audioReady?'海浪声已开启，开始航行':'开始航行。环境音暂时不可用，可稍后点击听海重试。';
+});
 const waveSlider=document.querySelector('#wave-size'),waveOutput=document.querySelector('#wave-value');
 let waveTarget=2.2;const waveStrength={value:waveTarget};
 waveSlider.addEventListener('input',()=>{waveTarget=Number(waveSlider.value)*.022;waveOutput.value=waveSlider.value+'%';});
@@ -63,7 +74,7 @@ const floorMat=mat(0x9fb68c);const floor=mesh(new THREE.PlaneGeometry(200,200),f
 // A feathered contact shadow anchors the little world to the tabletop.
 const shadowCanvas=document.createElement('canvas');shadowCanvas.width=128;shadowCanvas.height=128;const ctx=shadowCanvas.getContext('2d');const grad=ctx.createRadialGradient(64,64,5,64,64,64);grad.addColorStop(0,'rgba(22,60,77,.26)');grad.addColorStop(.65,'rgba(22,60,77,.12)');grad.addColorStop(1,'rgba(22,60,77,0)');ctx.fillStyle=grad;ctx.fillRect(0,0,128,128);
 const shadow=mesh(new THREE.PlaneGeometry(17,13),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(shadowCanvas),transparent:true,depthWrite:false}),scene,0,-1.365,0);shadow.rotation.x=-Math.PI/2;shadow.castShadow=false;
-const ship=new THREE.Group();scene.add(ship);
+const ship=new THREE.Group();ship.visible=false;scene.add(ship);
 // The hull is built in stacked rings: broad shoulders, a rounded bow and tapered keel.
 const outline=[[-.48,-1.15],[-.65,-.75],[-.65,.45],[-.45,.98],[0,1.32],[.45,.98],[.65,.45],[.65,-.75],[.48,-1.15]];
 function hull(y0,y1,lower,upper,material){const v=[],ii=[];outline.forEach(([x,z])=>v.push(x*lower,y0,z*lower,x*upper,y1,z*upper));for(let i=0;i<outline.length;i++){const a=i*2,b=((i+1)%outline.length)*2;ii.push(a,b,a+1,b,b+1,a+1);}const center=v.length/3;v.push(0,y1,0);for(let i=0;i<outline.length;i++)ii.push(center,i*2+1,((i+1)%outline.length)*2+1);const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));g.setIndex(ii);g.computeVertexNormals();return mesh(g,material,ship);}
@@ -114,31 +125,34 @@ function applyWeather(){
  document.querySelector('#mood').textContent=['晴光，与海豚同行。','细雨，落在蓝色的海。','远雷，潮水起伏。','日落，海面染上金色。','极光，盛着梦的小海。'][i];
  document.querySelector('#status').textContent=['已切换晴天','已切换小雨','已切换暴雨','已切换黄昏','已切换夜景'][i];
 }
-function setWeather(mode){if(!WEATHER_ORDER.includes(mode))return;chooseWeather(state,mode);applyWeather();}
+function setWeather(mode){if(!departure.started||!WEATHER_ORDER.includes(mode))return;chooseWeather(state,mode);applyWeather();}
 btns.forEach(b=>b.addEventListener('click',()=>setWeather(b.dataset.mode)));
 if(document.modelContext?.registerTool){
  const register=tool=>{try{Promise.resolve(document.modelContext.registerTool(tool)).catch(()=>{});}catch{}};
- register({name:'set_ocean_weather',title:'切换小海天气',description:'切换晴天、小雨、暴雨、黄昏或夜景。重启约60秒天气计时，保持航线和视角。',inputSchema:{type:'object',properties:{weather:{type:'string',enum:WEATHER_ORDER}},required:['weather'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!WEATHER_ORDER.includes(input?.weather))throw new Error('无效天气');setWeather(input.weather);return {weather:state.weather};}});
- register({name:'get_ocean_state',title:'查看航行状态',description:'查看天气、航行时间、下次天气变化和环境音状态。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(){return {weather:state.weather,voyageSeconds:state.time,weatherSeconds:state.elapsed,nextWeatherIn:Math.ceil(60-state.elapsed),audioEnabled:ambience.enabled,recordingsLoaded:ambience.loaded};}});
+ register({name:'set_ocean_weather',title:'切换小海天气',description:'切换晴天、小雨、暴雨、黄昏或夜景。重启约60秒天气计时，保持航线和视角。',inputSchema:{type:'object',properties:{weather:{type:'string',enum:WEATHER_ORDER}},required:['weather'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!WEATHER_ORDER.includes(input?.weather))throw new Error('无效天气');if(!departure.started)throw new Error('请先点击开始航行');setWeather(input.weather);return {weather:state.weather};}});
+ register({name:'get_ocean_state',title:'查看航行状态',description:'查看天气、航行时间、下次天气变化和环境音状态。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(){return {started:departure.started,shipVisible:ship.visible,weather:state.weather,voyageSeconds:state.time,weatherSeconds:state.elapsed,nextWeatherIn:Math.ceil(60-state.elapsed),audioEnabled:ambience.enabled,recordingsLoaded:ambience.loaded};}});
 }
 applyWeather();
-for(let t=state.time-8;t<state.time;t+=.12)emitWake(t);
+
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();showError('图形上下文暂时丢失，请刷新页面重新打开小海。');});
 window.addEventListener('resize',()=>{const oldFit=Math.max(1,1.02/camera.aspect);camera.aspect=innerWidth/innerHeight;camera.position.sub(controls.target).multiplyScalar(Math.max(1,1.02/camera.aspect)/oldFit).add(controls.target);camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 document.addEventListener('visibilitychange',()=>{previous=performance.now();ambience.setVisible(!document.hidden);});
 const tint=new THREE.Color();let previous=performance.now();
 function wave(x,z,t){return seaHeight(x,z,t,rainMix,waveStrength.value);}
-function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-previous)/1000,.05);previous=now;if(document.hidden)return;state.time+=dt;if(advanceWeather(state,dt))applyWeather();countdown.textContent=String(Math.ceil(60-state.elapsed)).padStart(2,'0');const t=state.time,pal=palettes[state.weather],blend=1-Math.exp(-dt*1.8);nightMix=THREE.MathUtils.lerp(nightMix,pal.night,blend);rainMix=THREE.MathUtils.lerp(rainMix,pal.rain,blend);duskMix=THREE.MathUtils.lerp(duskMix,state.weather==='dusk'?1:0,blend);
+function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-previous)/1000,.05);previous=now;if(document.hidden)return;departure.advance(dt);if(departure.started){state.time+=dt;if(advanceWeather(state,dt))applyWeather();}
+if(departure.age>2.25&&!intro.hidden){intro.hidden=true;document.body.dataset.intro="ready";voyageUI.inert=false;controls.enabled=true;canvas.tabIndex=0;if(document.activeElement===launchButton||document.activeElement===document.body)canvas.focus({preventScroll:true});}
+countdown.textContent=String(Math.ceil(60-state.elapsed)).padStart(2,'0');const t=state.time,pal=palettes[state.weather],blend=1-Math.exp(-dt*1.8);nightMix=THREE.MathUtils.lerp(nightMix,pal.night,blend);rainMix=THREE.MathUtils.lerp(rainMix,pal.rain,blend);duskMix=THREE.MathUtils.lerp(duskMix,state.weather==='dusk'?1:0,blend);
 sun.color.lerp(tint.setHex(pal.light),blend);sun.position.set(-7,12-duskMix*8,6);hemi.color.lerp(tint.setHex(state.weather==='dusk'?0xffecd7:0xe1eeff),blend);
 if(state.elapsed>=events.lightningAt){effects.lightning();ambience.thunder();events.lightningAt=state.weather==='storm'?state.elapsed+16+Math.random()*15:Infinity;}
 waveStrength.value=THREE.MathUtils.lerp(waveStrength.value,waveTarget,1-Math.exp(-dt*3));
-effects.update({...state,events,nightMix,dt,wave});auroraGlow.value=effects.waterGlow.value;
+if(departure.started)effects.update({...state,events,nightMix,dt,wave});auroraGlow.value=effects.waterGlow.value;
 sides.forEach((material,i)=>{material.emissive.setHSL(.47+.065*Math.sin(t*.075+i*.8),.62,.16);material.emissiveIntensity=auroraGlow.value*(i===0?.025:.12);});
 scene.background.lerp(tint.setHex(pal.bg),blend);scene.fog.color.copy(scene.background);floorMat.color.lerp(tint.setHex(pal.floor),blend);waterMat.color.lerp(tint.setHex(pal.water),blend);sides.forEach((s,i)=>s.color.lerp(tint.setHex(pal.side[i]),blend));sun.intensity=THREE.MathUtils.lerp(sun.intensity,pal.sun,blend);hemi.intensity=THREE.MathUtils.lerp(hemi.intensity,pal.hemi,blend);fill.intensity=1.1-nightMix*.55-duskMix*.55;
 waterTime.value=t;for(let i=0;i<wp.count;i++){const x=originals[i*3],z=originals[i*3+2];wp.setY(i,wave(x,z,t));}wp.needsUpdate=true;wg.computeVertexNormals();
+const entrance=departure.shipScale(reducedMotion.matches);ship.visible=entrance>0;ship.scale.setScalar(Math.max(.001,entrance));
 const pos=route(t),next=route(t+.12),heading=Math.atan2(next.x-pos.x,next.z-pos.z);const dx=Math.sin(heading),dz=Math.cos(heading);ship.position.set(pos.x,wave(pos.x,pos.z,t)+.05,pos.z);ship.rotation.set((wave(pos.x-dx*.6,pos.z-dz*.6,t)-wave(pos.x+dx*.6,pos.z+dz*.6,t))*.42,heading,(wave(pos.x+dz*.3,pos.z-dx*.3,t)-wave(pos.x-dz*.3,pos.z+dx*.3,t))*.45);flag.rotation.y=Math.sin(t*4)*.12;
-wakeClock+=dt;if(wakeClock>.1){emitWake(t);wakeClock=0;}for(const f of foam){const age=t-f.born;if(age>8){f.p.visible=false;continue;}f.p.position.x+=f.dx*dt*.065;f.p.position.z+=f.dz*dt*.065;f.p.position.y=.035+wave(f.p.position.x,f.p.position.z,t);const size=(.10+Math.min(age,3)*.035)*Math.max(.1,1-age/9);f.p.scale.set(size*(1+age*.25),.025,size*.8);f.p.material.opacity=Math.max(0,.8*(1-age/8));}
-birds.forEach(({g,wings,phase},i)=>{updateGullVisibility(g,state.weather,i,dt);if(!g.visible)return;const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.15,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;wings[0].rotation.z=Math.sin(t*2.4+phase)*.18;wings[1].rotation.z=-Math.sin(t*2.4+phase)*.18;});
+if(departure.age>1.65)wakeClock+=dt;if(wakeClock>.1){emitWake(t);wakeClock=0;}for(const f of foam){const age=t-f.born;if(age>8){f.p.visible=false;continue;}f.p.position.x+=f.dx*dt*.065;f.p.position.z+=f.dz*dt*.065;f.p.position.y=.035+wave(f.p.position.x,f.p.position.z,t);const size=(.10+Math.min(age,3)*.035)*Math.max(.1,1-age/9);f.p.scale.set(size*(1+age*.25),.025,size*.8);f.p.material.opacity=Math.max(0,.8*(1-age/8));}
+birds.forEach(({g,wings,phase},i)=>{if(!departure.started){g.visible=false;g.userData.fade=0;return;}updateGullVisibility(g,state.weather,i,dt);if(!g.visible)return;const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.15,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;wings[0].rotation.z=Math.sin(t*2.4+phase)*.18;wings[1].rotation.z=-Math.sin(t*2.4+phase)*.18;});
 moonGroup.scale.setScalar(Math.max(.001,nightMix*.56));moonGroup.rotation.y=Math.sin(t*.12)*.1;
 const lampMix=Math.max(nightMix,duskMix*.7,rainMix*.5);
 glass.color.lerp(tint.setHex(lampMix>.3?0xffd68b:0x418fa5),blend);glass.emissive.setHex(0xffb642);glass.emissiveIntensity=lampMix*1.2;lampMat.emissiveIntensity=lampMix*2;shipLight.intensity=lampMix*3.5;
@@ -146,5 +160,5 @@ rainMat.opacity=Math.min(.48,rainMix*.6);rainGeo.setDrawRange(0,Math.floor(150+r
  ripples.forEach(r=>{const a=(t*.65+r.userData.phase)%1;r.scale.setScalar(.2+a*1.5);r.material.opacity=rainMix*(1-a)*.4;r.position.y=.025+wave(r.position.x,r.position.z,t);});ambience.tick();
 controls.update();renderer.render(scene,camera);
 }
-requestAnimationFrame(frame);document.querySelector('#loading').hidden=true;
+controls.enabled=false;canvas.tabIndex=-1;launchButton.disabled=false;requestAnimationFrame(frame);document.querySelector('#loading').hidden=true;
 }

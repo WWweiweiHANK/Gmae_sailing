@@ -156,3 +156,20 @@ test('dolphins cross in ten seconds and the whole pod exits within fourteen',()=
  update(10.1);assert.equal(pod[0].visible,false);assert.ok(pod[3].visible);
  update(14);assert.ok(pod.every(g=>!g.visible));
 });
+
+test('departure stays silent and hidden until a single user start completes audio setup',async()=>{
+ const {createDeparture}=await import('./departure.mjs');
+ let calls=0,release;const departure=createDeparture(()=>{calls++;return new Promise(resolve=>{release=resolve;});});
+ departure.advance(60);assert.equal(departure.started,false);assert.equal(departure.age,0);assert.equal(calls,0);
+ const first=departure.launch(),second=departure.launch();assert.equal(calls,1);assert.equal(departure.started,false);
+ release(true);await Promise.all([first,second]);assert.equal(departure.started,true);assert.equal(departure.audioReady,true);
+ departure.advance(.1);assert.equal(departure.shipScale(false),0);
+ departure.advance(3);assert.equal(departure.shipScale(false),1);
+ await departure.launch();assert.equal(calls,1);
+});
+test('an unavailable audio device does not trap the user at the start screen',async()=>{
+ const {createDeparture}=await import('./departure.mjs');
+ const departure=createDeparture(()=>Promise.reject(new Error('audio unavailable')));
+ await departure.launch();assert.equal(departure.started,true);assert.equal(departure.audioReady,false);
+ departure.advance(.5);assert.equal(departure.shipScale(true),1);
+});

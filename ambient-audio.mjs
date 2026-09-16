@@ -1,57 +1,74 @@
-// Locally synthesized ambience: no downloads, tracking, or microphone access.
-export function ambientMix(weather) {
-  if(weather==='rainy') return {sea:.19,rain:.38,gull:.015};
-  if(weather==='night') return {sea:.15,rain:0,gull:.012};
-  return {sea:.24,rain:0,gull:.065};
-}
-function randomGenerator(seed){return ()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};}
-export function gullSamples(sampleRate,seed=1){
-  const length=Math.round(sampleRate*1.7),data=new Float32Array(length),random=randomGenerator(seed);let phase=0,breath=0;
-  for(let i=0;i<length;i++){
-    const t=i/sampleRate;const start=t<.72?0:.91;const duration=t<.72?.66:.69;const u=(t-start)/duration;
-    if(u<=0||u>=1)continue;
-    const freq=760+440*Math.sin(Math.PI*Math.min(1,u*1.65))*(1-u*.35)+14*Math.sin(t*73);
-    phase+=2*Math.PI*freq/sampleRate;breath=.65*breath+(random()*2-1)*.35;
-    const envelope=Math.sin(Math.PI*u)**1.65;
-    data[i]=envelope*(.38*Math.sin(phase)+.19*Math.sin(phase*2+.5)+.09*Math.sin(phase*3)+breath*.11)*(1+.055*Math.sin(t*157));
-  }
-  return data;
-}
+import seaURL from './audio/sea.mp3';
+import rainURL from './audio/rain.mp3';
+import gullURL from './audio/gull.mp3';
+import thunderURL from './audio/thunder.mp3';
+import { ambientMix } from './audio-mix.mjs';
+
+// Licensed field recordings are bundled into the standalone HTML. See SOUND_CREDITS.md.
 export function createAmbientAudio(onStateChange=()=>{}){
-  let context,master,sea,rain,gull,seaFilter,enabled=false,visible=true,weather='sunny',nextCall=0,lastTick=-1,suspendTimer;
-  function smooth(param,value,seconds=.7){param.setTargetAtTime(value,context.currentTime,seconds);}
+  let context,master,buses,buffers,loading,enabled=false,visible=!document.hidden;
+  let weather='sunny',volume=.22,nextCall=0,suspendTimer;
+  const loops=[],shots=new Set();
+  function clearShots(){for(const shot of shots)try{shot.stop();}catch{}shots.clear();}
+  const smooth=(param,value,seconds=.65)=>param.setTargetAtTime(value,context.currentTime,seconds);
+  function mix(){
+    if(!context)return;
+    const levels=ambientMix(weather);
+    for(const name of ['sea','rain','gull'])smooth(buses[name].gain,levels[name]);
+    smooth(buses.thunder.gain,['rainy','storm'].includes(weather)?.32:0,.5);
+    smooth(master.gain,enabled&&visible?volume:0,.18);
+  }
   function initialize(){
-    const Audio=globalThis.AudioContext||globalThis.webkitAudioContext;if(!Audio)throw new Error('浏览器不支持环境音');
-    context=new Audio();context.addEventListener('statechange',()=>{if(visible&&enabled&&(context.state==='suspended'||context.state==='interrupted'||context.state==='closed')){enabled=false;onStateChange(false);}});master=context.createGain();master.gain.value=0;
-    const limiter=context.createDynamicsCompressor();limiter.threshold.value=-12;limiter.knee.value=12;limiter.ratio.value=4;limiter.attack.value=.015;limiter.release.value=.3;master.connect(limiter).connect(context.destination);
-    const buffer=context.createBuffer(2,context.sampleRate*18,context.sampleRate);
-    for(let channel=0;channel<2;channel++){const data=buffer.getChannelData(channel);const random=randomGenerator(173+channel);let low=0;for(let i=0;i<data.length;i++){low=.96*low+.04*(random()*2-1);data[i]=low*2.8;}}
-    const src=context.createBufferSource();src.buffer=buffer;src.loop=true;
-    seaFilter=context.createBiquadFilter();seaFilter.type='lowpass';seaFilter.frequency.value=1100;seaFilter.Q.value=.3;
-    const high=context.createBiquadFilter();high.type='highpass';high.frequency.value=65;
-    sea=context.createGain();sea.gain.value=0;src.connect(high).connect(seaFilter).connect(sea).connect(master);src.start();
-    const rainBuffer=context.createBuffer(2,context.sampleRate*13,context.sampleRate);
-    for(let c=0;c<2;c++){const data=rainBuffer.getChannelData(c),rand=randomGenerator(c+89);let low=0;for(let i=0;i<data.length;i++){low=.55*low+.45*(rand()*2-1);data[i]=low*.65;}}
-    const rainSource=context.createBufferSource();rainSource.buffer=rainBuffer;rainSource.loop=true;
-    const rainFilter=context.createBiquadFilter();rainFilter.type='lowpass';rainFilter.frequency.value=5500;
-    rain=context.createGain();rain.gain.value=0;rainSource.connect(rainFilter).connect(rain).connect(master);rainSource.start();
-    gull=context.createGain();gull.gain.value=0;gull.connect(master);nextCall=context.currentTime+2.5;
+    const Audio=globalThis.AudioContext||globalThis.webkitAudioContext;
+    if(!Audio)throw new Error('浏览器不支持环境音');
+    context=new Audio();master=context.createGain();master.gain.value=0;
+    const limiter=context.createDynamicsCompressor();limiter.threshold.value=-18;limiter.knee.value=12;limiter.ratio.value=6;limiter.attack.value=.02;limiter.release.value=.4;
+    master.connect(limiter).connect(context.destination);buses={};
+    for(const name of ['sea','rain','gull','thunder']){buses[name]=context.createGain();buses[name].gain.value=0;buses[name].connect(master);}
+    context.addEventListener('statechange',()=>{if(visible&&enabled&&context.state!=='running'){enabled=false;onStateChange(false);}});
   }
-  function mix(){if(!context)return;const levels=ambientMix(weather);smooth(rain.gain,levels.rain);smooth(gull.gain,levels.gull);smooth(master.gain,enabled&&visible?.65:0,.15);}
+  async function load(){
+    if(buffers)return;
+    if(!loading)loading=Promise.all(Object.entries({sea:seaURL,rain:rainURL,gull:gullURL,thunder:thunderURL}).map(async([name,url])=>[name,await context.decodeAudioData(await (await fetch(url)).arrayBuffer())])).then(entries=>{
+      buffers=Object.fromEntries(entries);for(const name of ['sea','rain'])loops.push({name,next:context.currentTime});
+    }).catch(error=>{loading=null;throw error;});
+    await loading;
+  }
+  function scheduleLoop(loop){
+    const at=Math.max(context.currentTime,loop.next),duration=buffers[loop.name].duration,fade=1.5;
+    const source=context.createBufferSource(),gain=context.createGain();source.buffer=buffers[loop.name];
+    gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(1,at+fade);
+    gain.gain.setValueAtTime(1,at+duration-fade);gain.gain.linearRampToValueAtTime(0,at+duration);
+    source.connect(gain).connect(buses[loop.name]);source.onended=()=>{source.disconnect();gain.disconnect();};source.start(at);
+    loop.next=at+duration-fade;
+  }
+  function oneShot(name,delay=0){
+    if(!enabled||!visible||!buffers||context.state!=='running')return;
+    const source=context.createBufferSource(),pan=context.createStereoPanner();source.buffer=buffers[name];pan.pan.value=(Math.random()-.5)*.55;
+    source.connect(pan).connect(buses[name]);shots.add(source);source.onended=()=>{shots.delete(source);source.disconnect();pan.disconnect();};source.start(context.currentTime+delay);
+  }
   async function setEnabled(value){
-    if(value&&!context)initialize();if(!context)return false;clearTimeout(suspendTimer);
-    if(value){await context.resume();enabled=context.state==='running';nextCall=context.currentTime+2.5;}else enabled=false;
-    mix();onStateChange(enabled);if(!enabled)suspendTimer=setTimeout(()=>{if(!enabled)void context.suspend();},800);return enabled;
+    clearTimeout(suspendTimer);
+    if(!value){enabled=false;clearShots();mix();onStateChange(false);if(context)suspendTimer=setTimeout(()=>{if(!enabled)void context.suspend();},1000);return false;}
+    if(!context)initialize();
+    try{await context.resume();await load();enabled=context.state==='running';nextCall=context.currentTime+8+Math.random()*8;mix();onStateChange(enabled);tick();if(!visible)void setVisible(false);return enabled;}
+    catch(error){enabled=false;mix();onStateChange(false);void context.suspend();throw error;}
   }
-  function tick(){if(!context||!enabled||!visible||context.state!=='running')return;const t=context.currentTime;if(t-lastTick<.09)return;lastTick=t;
-    const surge=.5+.5*Math.sin(t*.78+.5*Math.sin(t*.13));smooth(sea.gain,ambientMix(weather).sea*(.48+surge*.52),.23);smooth(seaFilter.frequency,650+surge*1400,.35);
-    if(t>nextCall){const data=gullSamples(context.sampleRate,Math.floor(t*1000)),buffer=context.createBuffer(1,data.length,context.sampleRate);buffer.copyToChannel(data,0);const source=context.createBufferSource();source.buffer=buffer;const pan=context.createStereoPanner();pan.pan.value=Math.sin(t*.33)*.65;source.connect(pan).connect(gull);source.onended=()=>{source.disconnect();pan.disconnect();};source.start();nextCall=t+(weather==='sunny'?10:22)+Math.random()*10;}
+  function tick(){
+    if(!enabled||!visible||!buffers||context.state!=='running')return;
+    const t=context.currentTime;for(const loop of loops)if(loop.next<t+.3)scheduleLoop(loop);
+    if(t>=nextCall){if(ambientMix(weather).gull>0)oneShot('gull');nextCall=t+26+Math.random()*24;}
   }
   async function setVisible(value){
     visible=value;if(!context||!enabled)return;clearTimeout(suspendTimer);
-    if(!visible){mix();suspendTimer=setTimeout(()=>{if(!visible)void context.suspend();},800);return;}
+    if(!visible){clearShots();mix();suspendTimer=setTimeout(()=>{if(!visible)void context.suspend();},1000);return;}
     try{await context.resume();enabled=context.state==='running';}catch{enabled=false;}
     mix();onStateChange(enabled);
   }
-  return {setEnabled,tick,setWeather(value){weather=value;mix();},setVisible,get enabled(){return enabled;}};
+  return {setEnabled,setVisible,tick,
+    setWeather(value){weather=value;clearShots();mix();},
+    setVolume(value){volume=Math.max(0,Math.min(1,value));mix();},
+    thunder(){oneShot('thunder',1.4+Math.random()*.8);},
+    get enabled(){return enabled;},get loaded(){return buffers?Object.keys(buffers):[];}
+  };
 }

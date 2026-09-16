@@ -32,12 +32,12 @@ export function updateGullVisibility(group,weather,index,dt){
   group.userData.fade=fade;group.visible=fade>.005;
   group.traverse(part=>{if(part.isMesh)part.material.opacity=fade;});
 }
-export function seaHeight(x, z, time, rain = 0) {
+export function seaHeight(x, z, time, rain = 0, strength = 2.2) {
   const rim = Math.max(0, Math.min(1, (1 - (Math.abs(x)/5.8)**4.65 - (Math.abs(z)/4.45)**4.65) * 4));
   const edge=rim*rim*(3-2*rim);
   const p=x*.55+z*1.15-time*.46;
   const swell=.075*Math.sin(p)+.012*Math.sin(2*p-.4);
   const crossing=.026*Math.sin(x*1.05-z*.55-time*.31);
   const ripple=.006*Math.sin(x*2.1+z*1.8-time*.58);
-  return (swell+crossing+ripple)*edge*(1+rain*.35);
+  return (swell+crossing+ripple)*edge*(1+rain*.35)*strength;
 }

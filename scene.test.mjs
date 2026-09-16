@@ -14,7 +14,7 @@ test('sea swells travel over time while the cut boundary remains sealed', () => 
   let lo=Infinity, hi=-Infinity;
   for(let t=0;t<30;t+=.1){const h=model.seaHeight(0,0,t);lo=Math.min(lo,h);hi=Math.max(hi,h);assert.ok(Math.abs(model.seaHeight(5.8,0,t))<1e-8);assert.ok(Math.abs(model.seaHeight(0,4.45,t))<1e-8);}
   assert.ok(hi-lo>.1, 'swells must visibly rise and fall');
-  assert.ok(hi-lo<.28, 'miniature waves should remain low');
+  assert.ok(hi-lo<.62, 'miniature waves should remain low');
 });
 test('weather audio brings in rain and makes night quieter', () => {
   assert.equal(typeof sound.ambientMix,'function','weather audio is not implemented');
@@ -44,7 +44,7 @@ test('frame-by-frame weather timing never skips a stage at fractional boundaries
   }
 });
 test('storm waves stay gentle and aurora is delayed and probabilistic',()=>{
-  for(let t=0;t<60;t+=.05){assert.ok(Math.abs(model.seaHeight(1,1,t,1))<.18);assert.ok(Math.abs(model.seaHeight(1,1,t+.016,1)-model.seaHeight(1,1,t,1))<.002);}
+  for(let t=0;t<60;t+=.05){assert.ok(Math.abs(model.seaHeight(1,1,t,1))<.40);assert.ok(Math.abs(model.seaHeight(1,1,t+.016,1)-model.seaHeight(1,1,t,1))<.0045);}
   const yes=model.weatherEvents('night',()=>.1),no=model.weatherEvents('night',()=>.9);
   assert.ok(yes.auroraAt>=20);assert.equal(no.auroraAt,Infinity);
   assert.ok(model.weatherEvents('storm',()=>.5).lightningAt>=8);
@@ -138,4 +138,21 @@ test('muting or hiding cancels pending thunder and audio can resume cleanly',asy
     await audio.setVisible(true);assert.equal(context.state,'running');assert.equal(audio.enabled,true);
     await audio.setEnabled(false);
   }finally{globalThis.AudioContext=oldAudio;globalThis.document=oldDocument;}
+});
+
+test('wave strength ranges from calm water to twice the default without opening the boundary',()=>{
+ for(const rain of [0,1])for(let t=0;t<20;t+=.2){
+  assert.equal(Math.abs(model.seaHeight(1,1,t,rain,0)),0);
+  assert.ok(Math.abs(model.seaHeight(1,1,t,rain,4.4)-2*model.seaHeight(1,1,t,rain))<1e-8);
+  assert.equal(Math.abs(model.seaHeight(5.8,0,t,rain,4.4)),0);
+  assert.ok(Math.abs(model.seaHeight(1,1,t,rain,4.4))<.72);
+ }
+});
+test('dolphins cross in ten seconds and the whole pod exits within fourteen',()=>{
+ const scene=new THREE.Scene(),effects=createVoyageEffects(scene);
+ const update=elapsed=>effects.update({time:elapsed,elapsed,weather:'sunny',events:{dolphinsAt:0,auroraAt:Infinity},nightMix:0,dt:.016,wave:()=>0});
+ const pod=scene.children.filter(g=>g.userData.tail);assert.equal(pod.length,4);
+ update(5);assert.ok(pod[0].visible);assert.ok(Math.abs(pod[0].position.x)<.001);
+ update(10.1);assert.equal(pod[0].visible,false);assert.ok(pod[3].visible);
+ update(14);assert.ok(pod.every(g=>!g.visible));
 });

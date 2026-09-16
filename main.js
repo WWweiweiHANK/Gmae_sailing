@@ -13,6 +13,9 @@ const scene = new THREE.Scene();scene.fog=new THREE.Fog(0xc5d4b8,55,110);
 const soundButton=document.querySelector('#sound');
 function updateSoundButton(active){soundButton.setAttribute('aria-pressed',String(active));soundButton.setAttribute('aria-label',active?'关闭环境音':'开启环境音');soundButton.querySelector('span').textContent=active?'声音开':'听海';document.querySelector('#volume-control').hidden=!active;}
 const ambience=createAmbientAudio(updateSoundButton);
+const waveSlider=document.querySelector('#wave-size'),waveOutput=document.querySelector('#wave-value');
+let waveTarget=2.2;const waveStrength={value:waveTarget};
+waveSlider.addEventListener('input',()=>{waveTarget=Number(waveSlider.value)*.022;waveOutput.value=waveSlider.value+'%';});
 document.querySelector('#volume').addEventListener('input',e=>ambience.setVolume(Number(e.target.value)/100));
 const localTime=document.querySelector('#local-time');
 function updateClock(){const date=new Date();localTime.textContent=date.toLocaleTimeString('zh-CN',{hour12:false});localTime.dateTime=date.toISOString();}updateClock();setInterval(updateClock,1000);
@@ -48,12 +51,12 @@ for(let j=0;j<m;j++)for(let i=0;i<n;i++){const a=j*(n+1)+i;indices.push(a,a+n+1,
 const wg=new THREE.BufferGeometry();wg.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));wg.setIndex(indices);
 const wp=wg.attributes.position;const originals=wp.array.slice();
 wg.computeVertexNormals();const waterMat=new THREE.MeshLambertMaterial({color:0x367f99});const waterTime={value:15};const auroraGlow={value:0};
-waterMat.onBeforeCompile=shader=>{shader.uniforms.uSeaTime=waterTime;shader.uniforms.uAuroraGlow=auroraGlow;shader.vertexShader='varying vec3 vSeaPosition;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvSeaPosition=position;');shader.fragmentShader='uniform float uSeaTime;\nuniform float uAuroraGlow;\nvarying vec3 vSeaPosition;\n'+auroraColorGLSL+'\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+waterMat.onBeforeCompile=shader=>{shader.uniforms.uWaveStrength=waveStrength;shader.uniforms.uSeaTime=waterTime;shader.uniforms.uAuroraGlow=auroraGlow;shader.vertexShader='varying vec3 vSeaPosition;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvSeaPosition=position;');shader.fragmentShader='uniform float uWaveStrength;\nuniform float uSeaTime;\nuniform float uAuroraGlow;\nvarying vec3 vSeaPosition;\n'+auroraColorGLSL+'\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
   vec2 sea=vSeaPosition.xz;
   float phase=sea.x*.55+sea.y*1.15-uSeaTime*.46;
   float swellTone=.98+.085*sin(phase)+.025*sin(sea.x*1.05-sea.y*.55-uSeaTime*.31);
   float flow=.009*sin(sea.x*2.1+sea.y*1.8-uSeaTime*.58);
-  diffuseColor.rgb*=swellTone+flow;
+  diffuseColor.rgb*=.98+(swellTone-.98+flow)*min(uWaveStrength,3.);
 `);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=auroraWaterLight(vSeaPosition,uSeaTime)*uAuroraGlow;');};
 const water=mesh(wg,waterMat);water.castShadow=false;
 const floorMat=mat(0x9fb68c);const floor=mesh(new THREE.PlaneGeometry(200,200),floorMat,scene,0,-1.38,0);floor.rotation.x=-Math.PI/2;floor.castShadow=false;
@@ -126,10 +129,11 @@ canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();showError('图
 window.addEventListener('resize',()=>{const oldFit=Math.max(1,1.02/camera.aspect);camera.aspect=innerWidth/innerHeight;camera.position.sub(controls.target).multiplyScalar(Math.max(1,1.02/camera.aspect)/oldFit).add(controls.target);camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 document.addEventListener('visibilitychange',()=>{previous=performance.now();ambience.setVisible(!document.hidden);});
 const tint=new THREE.Color();let previous=performance.now();
-function wave(x,z,t){return seaHeight(x,z,t,rainMix);}
+function wave(x,z,t){return seaHeight(x,z,t,rainMix,waveStrength.value);}
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-previous)/1000,.05);previous=now;if(document.hidden)return;state.time+=dt;if(advanceWeather(state,dt))applyWeather();countdown.textContent=String(Math.ceil(60-state.elapsed)).padStart(2,'0');const t=state.time,pal=palettes[state.weather],blend=1-Math.exp(-dt*1.8);nightMix=THREE.MathUtils.lerp(nightMix,pal.night,blend);rainMix=THREE.MathUtils.lerp(rainMix,pal.rain,blend);duskMix=THREE.MathUtils.lerp(duskMix,state.weather==='dusk'?1:0,blend);
 sun.color.lerp(tint.setHex(pal.light),blend);sun.position.set(-7,12-duskMix*8,6);hemi.color.lerp(tint.setHex(state.weather==='dusk'?0xffecd7:0xe1eeff),blend);
 if(state.elapsed>=events.lightningAt){effects.lightning();ambience.thunder();events.lightningAt=state.weather==='storm'?state.elapsed+16+Math.random()*15:Infinity;}
+waveStrength.value=THREE.MathUtils.lerp(waveStrength.value,waveTarget,1-Math.exp(-dt*3));
 effects.update({...state,events,nightMix,dt,wave});auroraGlow.value=effects.waterGlow.value;
 sides.forEach((material,i)=>{material.emissive.setHSL(.47+.065*Math.sin(t*.075+i*.8),.62,.16);material.emissiveIntensity=auroraGlow.value*(i===0?.025:.12);});
 scene.background.lerp(tint.setHex(pal.bg),blend);scene.fog.color.copy(scene.background);floorMat.color.lerp(tint.setHex(pal.floor),blend);waterMat.color.lerp(tint.setHex(pal.water),blend);sides.forEach((s,i)=>s.color.lerp(tint.setHex(pal.side[i]),blend));cloudMat.color.lerp(tint.setHex(pal.cloud),blend);sun.intensity=THREE.MathUtils.lerp(sun.intensity,pal.sun,blend);hemi.intensity=THREE.MathUtils.lerp(hemi.intensity,pal.hemi,blend);fill.intensity=1.1-nightMix*.55-duskMix*.55;

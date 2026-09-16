@@ -55,10 +55,10 @@ export function createVoyageEffects(scene){
       starMaterial.uniforms.time.value=time;starMaterial.uniforms.fade.value=nightMix*.48*(1-aurora.waterGlow.value*.35);
       dolphins.forEach((g,i)=>{
         if(weather!=='sunny'){if(g.visible){g.position.y-=dt*.8;if(g.position.y<-.95)g.visible=false;}return;}
-        const u=(elapsed-events.dolphinsAt-i*3)/29;g.visible=u>=0&&u<=1;if(!g.visible)return;
+        const u=(elapsed-events.dolphinsAt-i*1.1)/10;g.visible=u>=0&&u<=1;if(!g.visible)return;
         const p=dolphinPose(u,i),q=dolphinPose(Math.min(1,u+.005),i);
         g.position.set(p.x,p.y+wave(p.x,p.z,time),p.z);g.rotation.y=-Math.atan2(q.z-p.z,q.x-p.x);g.rotation.z=Math.atan2(q.y-p.y,Math.max(.04,q.x-p.x))*.55;
-        g.userData.tail.rotation.z=Math.sin(time*2.2+i)*.13;
+        g.userData.tail.rotation.z=Math.sin(time*3.8+i)*.13;
       });
       flashAge+=dt;const strength=flashAge<.65?Math.sin(Math.PI*flashAge/.65)*Math.exp(-flashAge*4):0;
       const inRain=weather==='rainy'||weather==='storm';lightningMaterial.opacity=inRain?strength*.85:0;flash.intensity=inRain?strength*1.8:0;

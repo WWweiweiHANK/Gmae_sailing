@@ -7,6 +7,8 @@ let model = {};
 try { model = await import('./motion.mjs'); } catch {}
 let sound = {};
 try { sound = await import('./audio-mix.mjs'); } catch {}
+let aurora = {};
+try { aurora = await import('./aurora.mjs'); } catch {}
 test('sea swells travel over time while the cut boundary remains sealed', () => {
   assert.equal(typeof model.seaHeight, 'function', 'ocean swells are not implemented');
   let lo=Infinity, hi=-Infinity;
@@ -53,8 +55,34 @@ test('night effects remain over the model and do not turn with the camera',()=>{
   const sky=scene.children[0],bounds=new THREE.Box3().setFromObject(sky);
   assert.ok(bounds.min.x>=-5&&bounds.max.x<=5,'night sky must fit the model width');
   assert.ok(bounds.min.z>=-3.7&&bounds.max.z<=3.7,'night sky must fit the model depth');
-  assert.ok(bounds.min.y>=3&&bounds.max.y<=6,'night sky must stay close above the ocean');
+  assert.ok(bounds.min.y>=2.7&&bounds.max.y<=7.2,'night sky must stay close above the ocean');
   assert.equal(sky.rotation.y,0,'the miniature sky must not track the camera');
+});
+test('first night guarantees a delayed aurora and its layers unfold before the water glows',()=>{
+  const event=model.weatherEvents('night',()=>.99,true);assert.ok(event.auroraAt>=3&&event.auroraAt<=5);
+  assert.equal(typeof aurora.auroraStage,'function');
+  assert.deepEqual(aurora.auroraStage(0,event.auroraAt).layers,[0,0,0,0]);
+  const early=aurora.auroraStage(6,event.auroraAt),late=aurora.auroraStage(22,event.auroraAt);
+  assert.ok(early.layers[0]>early.layers[3]);assert.equal(early.water,0);
+  assert.ok(late.layers.every(v=>v>.99));assert.ok(late.water>.99);
+});
+test('all four moving curtains stay inside the miniature footprint',()=>{
+  assert.equal(typeof aurora.auroraPoint,'function');
+  for(let layer=0;layer<4;layer++)for(let t=0;t<90;t+=3)for(let u=0;u<=1;u+=.04)for(const v of [0,.5,1]){
+    const p=aurora.auroraPoint(layer,u,v,t);
+    assert.ok((Math.abs(p.x)/5.8)**4.65+(Math.abs(p.z)/4.45)**4.65<1);
+    assert.ok(p.y>2.7&&p.y<7.2);
+  }
+});
+test('aurora illumination follows its entrance and fades away on leaving night',()=>{
+  assert.equal(typeof aurora.createAurora,'function');
+  const scene=new THREE.Scene(),show=aurora.createAurora(scene);
+  const lights=[];scene.traverse(o=>{if(o.isPointLight)lights.push(o);});
+  assert.ok(lights.length>=2);assert.equal(show.waterGlow.value,0);
+  for(let i=0;i<1200;i++)show.update(i/60,i/60,'night',3.5,1/60);
+  assert.ok(show.waterGlow.value>.8);assert.ok(lights.some(l=>l.intensity>1));
+  for(let i=0;i<600;i++)show.update(20+i/60,i/60,'sunny',Infinity,1/60);
+  assert.ok(show.waterGlow.value<.001);assert.ok(lights.every(l=>l.intensity<.01));
 });
 test('gulls vanish in storm and night, then return softly in sunshine',()=>{
   assert.equal(typeof model.updateGullVisibility,'function');

@@ -13,10 +13,10 @@ export function advanceWeather(state,dt){
   const next=(WEATHER_ORDER.indexOf(state.weather)+steps)%WEATHER_ORDER.length;
   state.weather=WEATHER_ORDER[next];state.elapsed=Math.max(0,state.elapsed-steps*60);return true;
 }
-export function weatherEvents(weather,random=Math.random){
+export function weatherEvents(weather,random=Math.random,firstNight=false){
   return {dolphinsAt:weather==='sunny'?8+random()*10:Infinity,
     lightningAt:weather==='storm'?8+random()*12:weather==='rainy'&&random()<.25?30+random()*15:Infinity,
-    auroraAt:weather==='night'&&random()<.45?22+random()*12:Infinity};
+    auroraAt:weather==='night'?(firstNight?3.5:random()<.45?22+random()*12:Infinity):Infinity};
 }
 export function dolphinPose(u,lane=0){
   u=Math.max(0,Math.min(1,u));

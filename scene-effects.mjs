@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { dolphinPose } from './motion.mjs';
+import { createAurora } from './aurora.mjs';
 
 export function createVoyageEffects(scene){
   const sky=new THREE.Group();scene.add(sky);
   const starPositions=[];
-  for(let i=0;i<84;i++){
+  for(let i=0;i<38;i++){
     const angle=i*2.39996,r=Math.sqrt(Math.random());
     starPositions.push(Math.cos(angle)*4.5*r,3.4+(1-r*r)*1.3+Math.random()*.55,Math.sin(angle)*3.15*r);
   }
@@ -13,10 +14,7 @@ export function createVoyageEffects(scene){
     vertexShader:`uniform float time; varying float bright; void main(){bright=.5+.5*sin(time*.45+position.x*2.+position.z);vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=clamp((72.+bright*28.)/-mv.z,1.2,5.);gl_Position=projectionMatrix*mv;}`,
     fragmentShader:`uniform float fade;varying float bright;void main(){float a=1.-smoothstep(.05,.5,length(gl_PointCoord-.5));gl_FragColor=vec4(.82,.89,1.,a*fade*(.45+.55*bright));}`});
   const starField=new THREE.Points(starGeometry,starMaterial);starField.frustumCulled=false;sky.add(starField);
-  const auroraMaterial=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:{time:{value:0},fade:{value:0}},
-    vertexShader:`uniform float time;varying vec2 vUv;void main(){vUv=uv;vec3 p=position;p.z+=p.x*p.x*.045+sin(p.x*.9+time*.12)*.28;p.y+=sin(p.x*.85+time*.1)*.16;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,
-    fragmentShader:`uniform float time;uniform float fade;varying vec2 vUv;void main(){float rays=.7+.3*sin(vUv.x*80.+sin(vUv.x*19.+time*.16)*2.);float edge=sin(vUv.x*3.14159)*pow(max(0.,sin(vUv.y*3.14159)),1.7);vec3 col=mix(vec3(.25,.78,.61),vec3(.48,.38,.72),vUv.y);gl_FragColor=vec4(col,edge*rays*fade*.32);}`});
-  const aurora=new THREE.Mesh(new THREE.PlaneGeometry(7.6,1.7,60,12),auroraMaterial);aurora.position.set(0,4.5,-1.5);sky.add(aurora);
+  const aurora=createAurora(sky);
   const dolphinMaterial=new THREE.MeshStandardMaterial({color:0x5594b0,roughness:1,flatShading:true});
   const bellyMaterial=new THREE.MeshStandardMaterial({color:0xe2eee8,roughness:1,flatShading:true});
   const finMaterial=new THREE.MeshStandardMaterial({color:0x367a98,roughness:1,flatShading:true,side:THREE.DoubleSide});
@@ -48,14 +46,13 @@ export function createVoyageEffects(scene){
   const lightningGeometry=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-2.6,5,-2.8),new THREE.Vector3(-2.8,4.25,-2.8),new THREE.Vector3(-2.45,4.3,-2.8),new THREE.Vector3(-2.85,3.35,-2.8),new THREE.Vector3(-2.65,3.45,-2.8),new THREE.Vector3(-3.1,2.65,-2.8)]);
   const bolt=new THREE.Line(lightningGeometry,lightningMaterial);scene.add(bolt);
   const flash=new THREE.DirectionalLight(0xcbdcff,0);flash.position.set(-3,8,-3);scene.add(flash);
-  let flashAge=10,auroraFade=0;
+  let flashAge=10;
   return {
+    waterGlow:aurora.waterGlow,
     lightning(){flashAge=0;bolt.position.x=(Math.random()-.5)*2.5;},
     update({time,elapsed,weather,events,nightMix,dt,wave}){
-      starMaterial.uniforms.time.value=time;starMaterial.uniforms.fade.value=nightMix;
-      const target=weather==='night'&&elapsed>events.auroraAt?Math.min(1,(elapsed-events.auroraAt)/10):0;
-      auroraFade=THREE.MathUtils.lerp(auroraFade,target,1-Math.exp(-dt*.65));auroraMaterial.uniforms.time.value=time;auroraMaterial.uniforms.fade.value=auroraFade;
-      aurora.visible=auroraFade>.001;
+      aurora.update(time,elapsed,weather,events.auroraAt,dt);
+      starMaterial.uniforms.time.value=time;starMaterial.uniforms.fade.value=nightMix*.48*(1-aurora.waterGlow.value*.35);
       dolphins.forEach((g,i)=>{
         if(weather!=='sunny'){if(g.visible){g.position.y-=dt*.8;if(g.position.y<-.95)g.visible=false;}return;}
         const u=(elapsed-events.dolphinsAt-i*3)/29;g.visible=u>=0&&u<=1;if(!g.visible)return;

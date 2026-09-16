@@ -4,28 +4,44 @@ import { dolphinPose } from './motion.mjs';
 export function createVoyageEffects(scene){
   const sky=new THREE.Group();scene.add(sky);
   const starPositions=[];
-  for(let i=0;i<640;i++){
-    starPositions.push((Math.random()-.5)*46,-2+Math.random()*20,-14-Math.random()*5);
+  for(let i=0;i<84;i++){
+    const angle=i*2.39996,r=Math.sqrt(Math.random());
+    starPositions.push(Math.cos(angle)*4.5*r,3.4+(1-r*r)*1.3+Math.random()*.55,Math.sin(angle)*3.15*r);
   }
   const starGeometry=new THREE.BufferGeometry();starGeometry.setAttribute('position',new THREE.Float32BufferAttribute(starPositions,3));
   const starMaterial=new THREE.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{time:{value:0},fade:{value:0}},
-    vertexShader:`uniform float time; varying float bright; void main(){bright=.5+.5*sin(time*.65+position.x*2.+position.z);gl_PointSize=1.4+bright*1.4;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    vertexShader:`uniform float time; varying float bright; void main(){bright=.5+.5*sin(time*.45+position.x*2.+position.z);vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=clamp((72.+bright*28.)/-mv.z,1.2,5.);gl_Position=projectionMatrix*mv;}`,
     fragmentShader:`uniform float fade;varying float bright;void main(){float a=1.-smoothstep(.05,.5,length(gl_PointCoord-.5));gl_FragColor=vec4(.82,.89,1.,a*fade*(.45+.55*bright));}`});
   const starField=new THREE.Points(starGeometry,starMaterial);starField.frustumCulled=false;sky.add(starField);
   const auroraMaterial=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:{time:{value:0},fade:{value:0}},
-    vertexShader:`uniform float time;varying vec2 vUv;void main(){vUv=uv;vec3 p=position;p.z+=sin(p.x*.4+time*.12)*1.2;p.y+=sin(p.x*.35+time*.1)*.8;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,
-    fragmentShader:`uniform float time;uniform float fade;varying vec2 vUv;void main(){float rays=.6+.4*sin(vUv.x*160.+sin(vUv.x*31.+time*.16)*3.);float edge=sin(vUv.x*3.14159)*pow(sin(vUv.y*3.14159),1.7);vec3 col=mix(vec3(.22,.72,.55),vec3(.45,.36,.68),vUv.y);gl_FragColor=vec4(col,edge*rays*fade*.25);}`});
-  const aurora=new THREE.Mesh(new THREE.PlaneGeometry(26,5.5,90,12),auroraMaterial);aurora.position.set(-1,5.8,-9);sky.add(aurora);
-  const dolphinMaterial=new THREE.MeshStandardMaterial({color:0x83a8b6,roughness:1,flatShading:true});
-  const bellyMaterial=new THREE.MeshStandardMaterial({color:0xc7dcd9,roughness:1,flatShading:true});
+    vertexShader:`uniform float time;varying vec2 vUv;void main(){vUv=uv;vec3 p=position;p.z+=p.x*p.x*.045+sin(p.x*.9+time*.12)*.28;p.y+=sin(p.x*.85+time*.1)*.16;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,
+    fragmentShader:`uniform float time;uniform float fade;varying vec2 vUv;void main(){float rays=.7+.3*sin(vUv.x*80.+sin(vUv.x*19.+time*.16)*2.);float edge=sin(vUv.x*3.14159)*pow(max(0.,sin(vUv.y*3.14159)),1.7);vec3 col=mix(vec3(.25,.78,.61),vec3(.48,.38,.72),vUv.y);gl_FragColor=vec4(col,edge*rays*fade*.32);}`});
+  const aurora=new THREE.Mesh(new THREE.PlaneGeometry(7.6,1.7,60,12),auroraMaterial);aurora.position.set(0,4.5,-1.5);sky.add(aurora);
+  const dolphinMaterial=new THREE.MeshStandardMaterial({color:0x5594b0,roughness:1,flatShading:true});
+  const bellyMaterial=new THREE.MeshStandardMaterial({color:0xe2eee8,roughness:1,flatShading:true});
+  const finMaterial=new THREE.MeshStandardMaterial({color:0x367a98,roughness:1,flatShading:true,side:THREE.DoubleSide});
+  const eyeMaterial=new THREE.MeshBasicMaterial({color:0x152e3a});
   const dolphins=[];
   function part(group,r,scale,x,y,z,material=dolphinMaterial){const p=new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),material);p.scale.set(...scale);p.position.set(x,y,z);p.castShadow=true;group.add(p);return p;}
-  function fin(group,points){const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(points,3));geo.computeVertexNormals();const material=dolphinMaterial.clone();material.side=THREE.DoubleSide;group.add(new THREE.Mesh(geo,material));}
+  function fin(group,points){const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(points,3));geo.computeVertexNormals();group.add(new THREE.Mesh(geo,finMaterial));}
   for(let i=0;i<4;i++){
-    const g=new THREE.Group();scene.add(g);g.scale.setScalar(i===0?1:.76+i*.025);
-    part(g,1,[.48,.16,.18],0,0,0);part(g,1,[.22,.075,.085],.43,-.02,0);part(g,1,[.31,.085,.13],.08,-.09,0,bellyMaterial);
-    fin(g,[-.18,.1,0,.04,.46,0,.21,.1,0]);
-    for(const s of [-1,1]){fin(g,[.12,-.03,s*.09,-.22,-.12,s*.38,-.16,-.01,s*.1]);fin(g,[-.4,0,0,-.64,.04,s*.28,-.63,-.01,0]);}
+    const g=new THREE.Group();g.visible=false;scene.add(g);g.scale.setScalar(i===0?1:.87+i*.025);
+    // Tapered rings describe the curved back, forehead and narrow tail stock.
+    const profile=[[-.76,-.05,.045],[-.52,.015,.1],[-.27,.06,.19],[.02,.07,.24],[.28,.065,.215],[.46,.035,.14],[.52,.015,.07]];
+    const vertices=[],indices=[];
+    profile.forEach(([x,y,r])=>{for(let j=0;j<10;j++){const a=j/10*Math.PI*2;vertices.push(x,y+Math.cos(a)*r,Math.sin(a)*r*.82);}});
+    for(let k=0;k<profile.length-1;k++)for(let j=0;j<10;j++){const a=k*10+j,b=k*10+(j+1)%10;indices.push(a,b,a+10,b,b+10,a+10);}
+    const bodyGeometry=new THREE.BufferGeometry();bodyGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));bodyGeometry.setIndex(indices);bodyGeometry.computeVertexNormals();
+    const body=new THREE.Mesh(bodyGeometry,dolphinMaterial);body.castShadow=true;g.add(body);
+    part(g,1,[.235,.07,.085],.59,-.005,0);part(g,1,[.4,.12,.17],.12,-.095,0,bellyMaterial);
+    const dorsal=new THREE.Shape();dorsal.moveTo(-.31,.17);dorsal.quadraticCurveTo(-.21,.32,-.25,.48);dorsal.quadraticCurveTo(-.08,.49,.13,.17);dorsal.closePath();
+    const dorsalMesh=new THREE.Mesh(new THREE.ExtrudeGeometry(dorsal,{depth:.035,bevelEnabled:false,curveSegments:3}),finMaterial);dorsalMesh.position.z=-.0175;g.add(dorsalMesh);
+    const tail=new THREE.Group();tail.position.set(-.72,-.04,0);g.add(tail);g.userData.tail=tail;
+    for(const s of [-1,1]){
+      fin(g,[.2,-.07,s*.11,-.24,-.17,s*.37,-.08,-.065,s*.13]);
+      fin(tail,[.04,0,0,-.12,.015,s*.36,-.33,-.02,s*.42,.04,0,0,-.33,-.02,s*.42,-.19,-.025,0]);
+      part(g,.025,[1,1,.45],.385,.105,s*.145,eyeMaterial);
+    }
     dolphins.push(g);
   }
   const lightningMaterial=new THREE.LineBasicMaterial({color:0xdce5ff,transparent:true,opacity:0,depthWrite:false});
@@ -35,16 +51,17 @@ export function createVoyageEffects(scene){
   let flashAge=10,auroraFade=0;
   return {
     lightning(){flashAge=0;bolt.position.x=(Math.random()-.5)*2.5;},
-    update({time,elapsed,weather,events,nightMix,dt,wave,cameraYaw}){
-      sky.rotation.y=cameraYaw;
+    update({time,elapsed,weather,events,nightMix,dt,wave}){
       starMaterial.uniforms.time.value=time;starMaterial.uniforms.fade.value=nightMix;
       const target=weather==='night'&&elapsed>events.auroraAt?Math.min(1,(elapsed-events.auroraAt)/10):0;
       auroraFade=THREE.MathUtils.lerp(auroraFade,target,1-Math.exp(-dt*.65));auroraMaterial.uniforms.time.value=time;auroraMaterial.uniforms.fade.value=auroraFade;
       aurora.visible=auroraFade>.001;
       dolphins.forEach((g,i)=>{
-        const u=(elapsed-events.dolphinsAt-i*3)/29;g.visible=weather==='sunny'&&u>=0&&u<=1;if(!g.visible)return;
+        if(weather!=='sunny'){if(g.visible){g.position.y-=dt*.8;if(g.position.y<-.95)g.visible=false;}return;}
+        const u=(elapsed-events.dolphinsAt-i*3)/29;g.visible=u>=0&&u<=1;if(!g.visible)return;
         const p=dolphinPose(u,i),q=dolphinPose(Math.min(1,u+.005),i);
         g.position.set(p.x,p.y+wave(p.x,p.z,time),p.z);g.rotation.y=-Math.atan2(q.z-p.z,q.x-p.x);g.rotation.z=Math.atan2(q.y-p.y,Math.max(.04,q.x-p.x))*.55;
+        g.userData.tail.rotation.z=Math.sin(time*2.2+i)*.13;
       });
       flashAge+=dt;const strength=flashAge<.65?Math.sin(Math.PI*flashAge/.65)*Math.exp(-flashAge*4):0;
       const inRain=weather==='rainy'||weather==='storm';lightningMaterial.opacity=inRain?strength*.85:0;flash.intensity=inRain?strength*1.8:0;

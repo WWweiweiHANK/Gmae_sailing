@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { route, chooseWeather, seaHeight, advanceWeather, weatherEvents, WEATHER_ORDER } from './motion.mjs';
+import { route, chooseWeather, seaHeight, advanceWeather, weatherEvents, WEATHER_ORDER, updateGullVisibility } from './motion.mjs';
 import { createAmbientAudio } from './ambient-audio.mjs';
 import { createVoyageEffects } from './scene-effects.mjs';
 
@@ -49,11 +49,10 @@ const wp=wg.attributes.position;const originals=wp.array.slice();
 wg.computeVertexNormals();const waterMat=new THREE.MeshLambertMaterial({color:0x367f99});const waterTime={value:15};
 waterMat.onBeforeCompile=shader=>{shader.uniforms.uSeaTime=waterTime;shader.vertexShader='varying vec3 vSeaPosition;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvSeaPosition=position;');shader.fragmentShader='uniform float uSeaTime;\nvarying vec3 vSeaPosition;\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
   vec2 sea=vSeaPosition.xz;
-  float phase=sea.x*.7+sea.y*1.65-uSeaTime*1.05;
-  float swellTone=.94+.085*sin(phase)+.035*sin(sea.x*1.6-sea.y*.65-uSeaTime*.72);
-  float grain=sin(sea.x*67.+sin(sea.y*49.))*sin(sea.y*83.+sea.x*13.);
-  float ripples=sin(sea.x*18.+sea.y*25.-uSeaTime*.7)*sin(sea.x*9.-sea.y*21.);
-  diffuseColor.rgb*=swellTone+grain*.018+ripples*.022;
+  float phase=sea.x*.55+sea.y*1.15-uSeaTime*.46;
+  float swellTone=.98+.085*sin(phase)+.025*sin(sea.x*1.05-sea.y*.55-uSeaTime*.31);
+  float flow=.009*sin(sea.x*2.1+sea.y*1.8-uSeaTime*.58);
+  diffuseColor.rgb*=swellTone+flow;
 `);};
 const water=mesh(wg,waterMat);water.castShadow=false;
 const floorMat=mat(0x9fb68c);const floor=mesh(new THREE.PlaneGeometry(200,200),floorMat,scene,0,-1.38,0);floor.rotation.x=-Math.PI/2;floor.castShadow=false;
@@ -80,6 +79,7 @@ for(let i=0;i<4;i++){
  for(const side of [-1,1]){const pivot=new THREE.Group();g.add(pivot);
  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute([0,0,.1,side*.29,.14,.02,side*.57,.04,-.16,0,0,.1,side*.57,.04,-.16,side*.18,.01,-.12],3));geo.computeVertexNormals();mesh(geo,wingMat,pivot).castShadow=false;
  const tip=new THREE.BufferGeometry();tip.setAttribute('position',new THREE.Float32BufferAttribute([side*.43,.08,-.065,side*.57,.04,-.16,side*.32,.02,-.135],3));tip.computeVertexNormals();mesh(tip,wingTipMat,pivot).castShadow=false;wings.push(pivot);}
+ g.traverse(part=>{if(part.isMesh){part.material=part.material.clone();part.material.transparent=true;part.castShadow=false;}});
  birds.push({g,wings,phase:i*1.8});
 }
 const cloudMat=mat(0xffffff,{flatShading:false,roughness:1});const clouds=[];
@@ -127,12 +127,12 @@ function wave(x,z,t){return seaHeight(x,z,t,rainMix);}
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-previous)/1000,.05);previous=now;if(document.hidden)return;state.time+=dt;if(advanceWeather(state,dt))applyWeather();countdown.textContent=String(Math.ceil(60-state.elapsed)).padStart(2,'0');const t=state.time,pal=palettes[state.weather],blend=1-Math.exp(-dt*1.8);nightMix=THREE.MathUtils.lerp(nightMix,pal.night,blend);rainMix=THREE.MathUtils.lerp(rainMix,pal.rain,blend);duskMix=THREE.MathUtils.lerp(duskMix,state.weather==='dusk'?1:0,blend);
 sun.color.lerp(tint.setHex(pal.light),blend);sun.position.set(-7,12-duskMix*8,6);hemi.color.lerp(tint.setHex(state.weather==='dusk'?0xffecd7:0xe1eeff),blend);
 if(state.elapsed>=events.lightningAt){effects.lightning();ambience.thunder();events.lightningAt=state.weather==='storm'?state.elapsed+16+Math.random()*15:Infinity;}
-effects.update({...state,events,nightMix,dt,wave,cameraYaw:Math.atan2(camera.position.x,camera.position.z)});
+effects.update({...state,events,nightMix,dt,wave});
 scene.background.lerp(tint.setHex(pal.bg),blend);scene.fog.color.copy(scene.background);floorMat.color.lerp(tint.setHex(pal.floor),blend);waterMat.color.lerp(tint.setHex(pal.water),blend);sides.forEach((s,i)=>s.color.lerp(tint.setHex(pal.side[i]),blend));cloudMat.color.lerp(tint.setHex(pal.cloud),blend);sun.intensity=THREE.MathUtils.lerp(sun.intensity,pal.sun,blend);hemi.intensity=THREE.MathUtils.lerp(hemi.intensity,pal.hemi,blend);fill.intensity=1.1-nightMix*.55-duskMix*.55;
 waterTime.value=t;for(let i=0;i<wp.count;i++){const x=originals[i*3],z=originals[i*3+2];wp.setY(i,wave(x,z,t));}wp.needsUpdate=true;wg.computeVertexNormals();
 const pos=route(t),next=route(t+.12),heading=Math.atan2(next.x-pos.x,next.z-pos.z);const dx=Math.sin(heading),dz=Math.cos(heading);ship.position.set(pos.x,wave(pos.x,pos.z,t)+.05,pos.z);ship.rotation.set((wave(pos.x-dx*.6,pos.z-dz*.6,t)-wave(pos.x+dx*.6,pos.z+dz*.6,t))*.42,heading,(wave(pos.x+dz*.3,pos.z-dx*.3,t)-wave(pos.x-dz*.3,pos.z+dx*.3,t))*.45);flag.rotation.y=Math.sin(t*4)*.12;
 wakeClock+=dt;if(wakeClock>.1){emitWake(t);wakeClock=0;}for(const f of foam){const age=t-f.born;if(age>8){f.p.visible=false;continue;}f.p.position.x+=f.dx*dt*.065;f.p.position.z+=f.dz*dt*.065;f.p.position.y=.035+wave(f.p.position.x,f.p.position.z,t);const size=(.10+Math.min(age,3)*.035)*Math.max(.1,1-age/9);f.p.scale.set(size*(1+age*.25),.025,size*.8);f.p.material.opacity=Math.max(0,.8*(1-age/8));}
-birds.forEach(({g,wings,phase},i)=>{const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.5,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;wings[0].rotation.z=Math.sin(t*2.4+phase)*.18;wings[1].rotation.z=-Math.sin(t*2.4+phase)*.18;g.scale.setScalar(1-nightMix*.2);});
+birds.forEach(({g,wings,phase},i)=>{updateGullVisibility(g,state.weather,i,dt);if(!g.visible)return;const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.15,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;wings[0].rotation.z=Math.sin(t*2.4+phase)*.18;wings[1].rotation.z=-Math.sin(t*2.4+phase)*.18;});
 clouds.forEach((c,i)=>{c.scale.setScalar(Math.max(.001,1-nightMix)*(1+rainMix*.35));c.position.y=4.4+i*.3+Math.sin(t*.22+i)*.08;c.position.x=(i===0?-3.7:i===1?3.6:.2)+Math.sin(t*.045+i)*.3;});moonGroup.scale.setScalar(Math.max(.001,nightMix));moonGroup.rotation.y=Math.sin(t*.12)*.1;
 const lampMix=Math.max(nightMix,duskMix*.7,rainMix*.5);
 glass.color.lerp(tint.setHex(lampMix>.3?0xffd68b:0x418fa5),blend);glass.emissive.setHex(0xffb642);glass.emissiveIntensity=lampMix*1.2;lampMat.emissiveIntensity=lampMix*2;shipLight.intensity=lampMix*3.5;

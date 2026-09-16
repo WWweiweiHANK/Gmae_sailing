@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
+import * as THREE from 'three';
+import { createVoyageEffects } from './scene-effects.mjs';
 let model = {};
 try { model = await import('./motion.mjs'); } catch {}
 let sound = {};
@@ -9,8 +11,8 @@ test('sea swells travel over time while the cut boundary remains sealed', () => 
   assert.equal(typeof model.seaHeight, 'function', 'ocean swells are not implemented');
   let lo=Infinity, hi=-Infinity;
   for(let t=0;t<30;t+=.1){const h=model.seaHeight(0,0,t);lo=Math.min(lo,h);hi=Math.max(hi,h);assert.ok(Math.abs(model.seaHeight(5.8,0,t))<1e-8);assert.ok(Math.abs(model.seaHeight(0,4.45,t))<1e-8);}
-  assert.ok(hi-lo>.2, 'swells must visibly rise and fall');
-  assert.ok(hi-lo<.65, 'waves should remain gentle');
+  assert.ok(hi-lo>.1, 'swells must visibly rise and fall');
+  assert.ok(hi-lo<.28, 'miniature waves should remain low');
 });
 test('weather audio brings in rain and makes night quieter', () => {
   assert.equal(typeof sound.ambientMix,'function','weather audio is not implemented');
@@ -39,11 +41,28 @@ test('frame-by-frame weather timing never skips a stage at fractional boundaries
     assert.equal(changes,5);assert.equal(s.weather,'sunny');assert.ok(s.elapsed<.001);
   }
 });
-test('storm waves are visibly stronger and aurora is delayed and probabilistic',()=>{
-  assert.ok(Math.abs(model.seaHeight(0,1,3,1))>Math.abs(model.seaHeight(0,1,3,0))*1.6);
+test('storm waves stay gentle and aurora is delayed and probabilistic',()=>{
+  for(let t=0;t<60;t+=.05){assert.ok(Math.abs(model.seaHeight(1,1,t,1))<.18);assert.ok(Math.abs(model.seaHeight(1,1,t+.016,1)-model.seaHeight(1,1,t,1))<.002);}
   const yes=model.weatherEvents('night',()=>.1),no=model.weatherEvents('night',()=>.9);
   assert.ok(yes.auroraAt>=20);assert.equal(no.auroraAt,Infinity);
   assert.ok(model.weatherEvents('storm',()=>.5).lightningAt>=8);
+});
+test('night effects remain over the model and do not turn with the camera',()=>{
+  const scene=new THREE.Scene(),effects=createVoyageEffects(scene);
+  effects.update({time:30,elapsed:40,weather:'night',events:{auroraAt:0,dolphinsAt:Infinity},nightMix:1,dt:1,wave:()=>0,cameraYaw:1.7});
+  const sky=scene.children[0],bounds=new THREE.Box3().setFromObject(sky);
+  assert.ok(bounds.min.x>=-5&&bounds.max.x<=5,'night sky must fit the model width');
+  assert.ok(bounds.min.z>=-3.7&&bounds.max.z<=3.7,'night sky must fit the model depth');
+  assert.ok(bounds.min.y>=3&&bounds.max.y<=6,'night sky must stay close above the ocean');
+  assert.equal(sky.rotation.y,0,'the miniature sky must not track the camera');
+});
+test('gulls vanish in storm and night, then return softly in sunshine',()=>{
+  assert.equal(typeof model.updateGullVisibility,'function');
+  const birds=Array.from({length:4},()=>{const g=new THREE.Group();g.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial({transparent:true})));return g;});
+  for(const weather of ['storm','night'])for(const [i,bird] of birds.entries()){model.updateGullVisibility(bird,weather,i,.016);assert.equal(bird.visible,false);}
+  for(const [i,bird] of birds.entries()){model.updateGullVisibility(bird,'sunny',i,.016);assert.equal(bird.visible,true);assert.ok(bird.children[0].material.opacity>0&&bird.children[0].material.opacity<.1);}
+  for(let frame=0;frame<400;frame++)for(const [i,bird] of birds.entries())model.updateGullVisibility(bird,'rainy',i,.016);
+  assert.equal(birds.filter(b=>b.visible).length,2);
 });
 test('the full looping route keeps the hull and wake inside the ocean boundary', () => {
   assert.equal(typeof model.route, 'function', 'route is not implemented');

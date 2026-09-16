@@ -1,16 +1,21 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { route, chooseWeather } from './motion.mjs';
+import { route, chooseWeather, seaHeight } from './motion.mjs';
+import { createAmbientAudio } from './ambient-audio.mjs';
 
 const canvas = document.querySelector('#scene');
 function showError(text) { document.querySelector('#loading').hidden=true;const el=document.querySelector('#error');el.hidden=false;el.textContent=text; }
 try { start(); } catch (error) { console.error(error);showError('场景未能启动。请使用支持 WebGL 2 的新版浏览器，并开启硬件加速。'); }
 function start() {
-const scene = new THREE.Scene();scene.fog=new THREE.Fog(0xe8f2f4,55,110);
+const scene = new THREE.Scene();scene.fog=new THREE.Fog(0xc5d4b8,55,110);
+const soundButton=document.querySelector('#sound');
+function updateSoundButton(active){soundButton.setAttribute('aria-pressed',String(active));soundButton.setAttribute('aria-label',active?'关闭环境音':'开启环境音');soundButton.querySelector('span').textContent=active?'声音开':'听海';}
+const ambience=createAmbientAudio(updateSoundButton);
+soundButton.addEventListener('click',async()=>{soundButton.disabled=true;try{const active=await ambience.setEnabled(!ambience.enabled);document.querySelector('#status').textContent=active?'环境音已开启':'环境音已关闭';}catch(error){console.warn(error);document.querySelector('#status').textContent='环境音暂时无法开启，请再次点击重试';}finally{soundButton.disabled=false;}});
 const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.18;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
 const camera=new THREE.PerspectiveCamera(36,innerWidth/innerHeight,.1,150);
 const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.055;controls.enablePan=false;
 controls.minDistance=11;controls.maxDistance=62;controls.minPolarAngle=.2;controls.maxPolarAngle=1.35;controls.target.set(0,.45,0);
@@ -32,14 +37,24 @@ function slab(top,bottom,color,scale=1){const pos=[],idx=[];for(let i=0;i<=96;i+
 const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setIndex(idx);geo.computeVertexNormals();const m=mat(color,{side:THREE.DoubleSide});const obj=mesh(geo,m);sides.push(m);return obj;}
 slab(-.96,-1.17,0xe9e7d8,1.025);slab(-.62,-.96,0x12628d);slab(-.3,-.62,0x087fab);slab(0,-.3,0x12a6c6);
 const capVertices=[0,-.96,0],capIndices=[];for(let i=0;i<=96;i++){const [x,z]=boundary(i/96*Math.PI*2,1.025);capVertices.push(x,-.96,z);if(i<96)capIndices.push(0,i+2,i+1);}const capGeo=new THREE.BufferGeometry();capGeo.setAttribute('position',new THREE.Float32BufferAttribute(capVertices,3));capGeo.setIndex(capIndices);capGeo.computeVertexNormals();mesh(capGeo,sides[0]);
-const n=38,m=30,vertices=[],indices=[],colors=[];
+const n=96,m=76,vertices=[],indices=[];
 for(let j=0;j<=m;j++)for(let i=0;i<=n;i++){let u=i/n*2-1,v=j/m*2-1;const d=(Math.abs(u)**4.65+Math.abs(v)**4.65)**(1/4.65);const f=d?Math.max(Math.abs(u),Math.abs(v))/d:1;vertices.push(u*f*5.8,0,v*f*4.45);}
 for(let j=0;j<m;j++)for(let i=0;i<n;i++){const a=j*(n+1)+i;indices.push(a,a+n+1,a+1,a+1,a+n+1,a+n+2);}
-let wg=new THREE.BufferGeometry();wg.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));wg.setIndex(indices);wg=wg.toNonIndexed();
+const wg=new THREE.BufferGeometry();wg.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));wg.setIndex(indices);
 const wp=wg.attributes.position;const originals=wp.array.slice();
-for(let i=0;i<wp.count;i+=3){const c=new THREE.Color(0x0088b9).lerp(new THREE.Color(0x039dcc),Math.random()).multiplyScalar(.86+Math.random()*.14);for(let k=0;k<3;k++)colors.push(c.r,c.g,c.b);}
-wg.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));wg.computeVertexNormals();const waterMat=mat(0xffffff,{vertexColors:true,metalness:.03,roughness:.62});const water=mesh(wg,waterMat);water.castShadow=false;
-const floorMat=mat(0xe4edef);const floor=mesh(new THREE.PlaneGeometry(200,200),floorMat,scene,0,-1.38,0);floor.rotation.x=-Math.PI/2;floor.castShadow=false;
+wg.computeVertexNormals();const waterMat=mat(0x367f99,{flatShading:false,metalness:.06,roughness:.38});const waterTime={value:15};
+waterMat.onBeforeCompile=shader=>{shader.uniforms.uSeaTime=waterTime;shader.vertexShader='varying vec3 vSeaPosition;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvSeaPosition=position;');shader.fragmentShader='uniform float uSeaTime;\nvarying vec3 vSeaPosition;\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+  vec2 sea=vSeaPosition.xz;
+  float phase=sea.x*.7+sea.y*1.65-uSeaTime*1.05;
+  float crest=pow(max(0.,sin(phase+.16*sin(sea.x*2.8+sea.y*.6))),56.);
+  float foamPatch=smoothstep(.1,.8,sin(sea.x*.95+.6*sin(sea.y*1.4)+uSeaTime*.15));
+  float edge=clamp((1.-pow(abs(sea.x)/5.8,4.65)-pow(abs(sea.y)/4.45,4.65))*5.,0.,1.);
+  float swellTone=.94+.11*sin(phase)+.035*sin(sea.x*1.6-sea.y*.65-uSeaTime*.72);
+  diffuseColor.rgb*=swellTone;
+  diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.60,.83,.77),crest*foamPatch*edge*.3);
+`);};
+const water=mesh(wg,waterMat);water.castShadow=false;
+const floorMat=mat(0x9fb68c);const floor=mesh(new THREE.PlaneGeometry(200,200),floorMat,scene,0,-1.38,0);floor.rotation.x=-Math.PI/2;floor.castShadow=false;
 // A feathered contact shadow anchors the little world to the tabletop.
 const shadowCanvas=document.createElement('canvas');shadowCanvas.width=128;shadowCanvas.height=128;const ctx=shadowCanvas.getContext('2d');const grad=ctx.createRadialGradient(64,64,5,64,64,64);grad.addColorStop(0,'rgba(22,60,77,.26)');grad.addColorStop(.65,'rgba(22,60,77,.12)');grad.addColorStop(1,'rgba(22,60,77,0)');ctx.fillStyle=grad;ctx.fillRect(0,0,128,128);
 const shadow=mesh(new THREE.PlaneGeometry(17,13),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(shadowCanvas),transparent:true,depthWrite:false}),scene,0,-1.365,0);shadow.rotation.x=-Math.PI/2;shadow.castShadow=false;
@@ -57,8 +72,8 @@ const flag=mesh(new THREE.BoxGeometry(.25,.14,.018),orange,ship,.13,2.01,.25);
 for(const side of [-1,1]){for(let i=0;i<6;i++)rod([side*.51,.51,-.96+i*.31],[side*.51,.74,-.96+i*.31],.015,railMat,ship);rod([side*.51,.73,-1],[side*.51,.73,.64],.022,railMat,ship);const ring=mesh(new THREE.TorusGeometry(.14,.043,6,12),orange,ship,side*.49,.94,-.13);ring.rotation.y=Math.PI/2;}
 rod([-.51,.73,-1],[.51,.73,-1],.022,railMat,ship);
 const lampMat=mat(0xffdf95,{emissive:0xffae43,emissiveIntensity:0});ball(.065,lampMat,ship,0,2.11,.25,1);const shipLight=new THREE.PointLight(0xffbe69,0,4,2);shipLight.position.set(0,1.25,.7);ship.add(shipLight);
-const birdMat=mat(0xfaf9ef), wingMat=mat(0xdce8ea,{side:THREE.DoubleSide});const birds=[];
-for(let i=0;i<4;i++){const g=new THREE.Group();scene.add(g);const body=ball(.105,birdMat,g,0,0,0,1);body.scale.set(.72,.78,1.85);const beak=mesh(new THREE.ConeGeometry(.035,.13,4),orange,g,0,.01,.22);beak.rotation.x=Math.PI/2;const wings=[];for(const s of [-1,1]){const pivot=new THREE.Group();g.add(pivot);const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute([0,0,.08,s*.3,.035,.035,s*.65,-.08,-.16,s*.3,.035,.035,s*.38,0,-.17,0,0,-.09],3));geo.computeVertexNormals();mesh(geo,wingMat,pivot);wings.push(pivot);}birds.push({g,wings,phase:i*1.8});}
+const wingMat=mat(0xfffdf0,{side:THREE.DoubleSide,flatShading:false});const birds=[];
+for(let i=0;i<4;i++){const g=new THREE.Group();scene.add(g);const wings=[];for(const s of [-1,1]){const pivot=new THREE.Group();g.add(pivot);const path=new THREE.CatmullRomCurve3([new THREE.Vector3(0,0,0),new THREE.Vector3(s*.16,.11,-.012),new THREE.Vector3(s*.34,.145,-.045),new THREE.Vector3(s*.52,.075,-.075)]);const geo=new THREE.TubeGeometry(path,12,.027,5,false);const wing=mesh(geo,wingMat,pivot);wing.castShadow=false;wings.push(pivot);}birds.push({g,wings,phase:i*1.8});}
 const cloudMat=mat(0xffffff);const clouds=[];
 for(let i=0;i<2;i++){const cloud=new THREE.Group();cloud.position.set(i?3.6:-3.7,4.4+i*.5,-2.7);scene.add(cloud);[[0,0,0,.47],[-.5,-.09,0,.36],[.5,-.08,0,.37],[.12,.25,0,.4]].forEach(([x,y,z,r])=>{const p=ball(r,cloudMat,cloud,x,y,z,1);p.scale.z=.65;p.castShadow=false;});clouds.push(cloud);}
 const moonGroup=new THREE.Group();moonGroup.position.set(-3.3,4.4,-2.6);scene.add(moonGroup);
@@ -71,28 +86,27 @@ function emitWake(t){const pos=route(t),next=route(t+.08);let dx=next.x-pos.x,dz
 const rainCount=440,rainArray=new Float32Array(rainCount*6),rainMeta=[];for(let i=0;i<rainCount;i++){const x=(Math.random()-.5)*10,z=(Math.random()-.5)*7.3;rainMeta.push({x,z,y:Math.random()*5.2,speed:4+Math.random()*2});}
 const rainGeo=new THREE.BufferGeometry();rainGeo.setAttribute('position',new THREE.BufferAttribute(rainArray,3));const rainMat=new THREE.LineBasicMaterial({color:0xd7f4ff,transparent:true,opacity:0,depthWrite:false});const rain=new THREE.LineSegments(rainGeo,rainMat);scene.add(rain);
 const ripples=[];for(let i=0;i<24;i++){const r=mesh(new THREE.RingGeometry(.14,.16,18),new THREE.MeshBasicMaterial({color:0xcce7ee,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));r.rotation.x=-Math.PI/2;r.position.set((Math.random()-.5)*9,.06,(Math.random()-.5)*6.8);r.castShadow=false;r.userData.phase=Math.random();ripples.push(r);}
-const glints=[];const glintMat=new THREE.MeshBasicMaterial({color:0xbbeaf0,transparent:true,opacity:.4});for(let i=0;i<42;i++){const p=mesh(new THREE.PlaneGeometry(.13+Math.random()*.24,.035),glintMat,scene,(Math.random()-.5)*10,.085,(Math.random()-.5)*7.4);p.rotation.x=-Math.PI/2;p.rotation.z=-.3;p.castShadow=false;glints.push(p);}
-const palettes={sunny:{bg:0xe8f2f4,floor:0xe3edef,water:0xffffff,side:[0xe9e7d8,0x12628d,0x087fab,0x12a6c6],sun:3.2,hemi:2.3,night:0,rain:0,cloud:0xffffff},rainy:{bg:0xa2b8c6,floor:0xa9bdc9,water:0x86adbb,side:[0xc1ccd0,0x294e69,0x2c647f,0x428c9d],sun:.85,hemi:1.85,night:0,rain:1,cloud:0x8099ab},night:{bg:0x142239,floor:0x1a2e46,water:0x5275a3,side:[0x748ba3,0x183553,0x225577,0x307c9c],sun:.9,hemi:1.3,night:1,rain:0,cloud:0x607594}};
+const palettes={sunny:{bg:0xc5d4b8,floor:0x9fb68c,water:0x367f99,side:[0xe5e8cf,0x23617a,0x2a8297,0x439da6],sun:2.5,hemi:2.2,night:0,rain:0,cloud:0xfffced},rainy:{bg:0x8da394,floor:0x718b77,water:0x326b7d,side:[0xbcc9b3,0x294e61,0x3a6879,0x4b8890],sun:.85,hemi:1.85,night:0,rain:1,cloud:0x91a89d},night:{bg:0x172e2b,floor:0x16342a,water:0x1d4968,side:[0x6f8c80,0x183b4d,0x25566b,0x39768a],sun:.9,hemi:1.3,night:1,rain:0,cloud:0x607d70}};
 const state={time:15,weather:'sunny'};let nightMix=0,rainMix=0;scene.background=new THREE.Color(palettes.sunny.bg);
-const btns=[...document.querySelectorAll('[data-mode]')];function setWeather(mode){chooseWeather(state,mode);document.body.dataset.weather=state.weather;btns.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===state.weather)));const i=['sunny','rainy','night'].indexOf(state.weather);document.querySelector('#mode-index').textContent=['01','02','03'][i];document.querySelector('#mood').textContent=['晴光，慢慢航行。','雨落，小海轻声。','月色，一盏归航的灯。'][i];document.querySelector('#status').textContent=['已切换晴天','已切换雨天','已切换夜景'][i];}
+const btns=[...document.querySelectorAll('[data-mode]')];function setWeather(mode){chooseWeather(state,mode);ambience.setWeather(state.weather);document.body.dataset.weather=state.weather;btns.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===state.weather)));const i=['sunny','rainy','night'].indexOf(state.weather);document.querySelector('#mode-index').textContent=['01','02','03'][i];document.querySelector('#mood').textContent=['晴光，慢慢航行。','雨落，小海轻声。','月色，一盏归航的灯。'][i];document.querySelector('#status').textContent=['已切换晴天','已切换雨天','已切换夜景'][i];}
 btns.forEach(b=>b.addEventListener('click',()=>setWeather(b.dataset.mode)));
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'set_ocean_weather',title:'切换小海天气',description:'在晴天、雨天和夜景之间切换，保持当前航行进度与视角。',inputSchema:{type:'object',properties:{weather:{type:'string',enum:['sunny','rainy','night']}},required:['weather'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!input||!['sunny','rainy','night'].includes(input.weather))throw new Error('天气必须为 sunny、rainy 或 night');setWeather(input.weather);return {weather:state.weather};}})).catch(()=>{});}catch{}}
 for(let t=state.time-8;t<state.time;t+=.12)emitWake(t);
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();showError('图形上下文暂时丢失，请刷新页面重新打开小海。');});
 window.addEventListener('resize',()=>{const oldFit=Math.max(1,1.02/camera.aspect);camera.aspect=innerWidth/innerHeight;camera.position.sub(controls.target).multiplyScalar(Math.max(1,1.02/camera.aspect)/oldFit).add(controls.target);camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
-document.addEventListener('visibilitychange',()=>{previous=performance.now();});
+document.addEventListener('visibilitychange',()=>{previous=performance.now();ambience.setVisible(!document.hidden);});
 const tint=new THREE.Color();let previous=performance.now();
-function wave(x,z,t){return .052*Math.sin(x*1.8+z*.8+t*1.2)+.035*Math.cos(z*2.2-x*.5+t*.9);}
+function wave(x,z,t){return seaHeight(x,z,t,rainMix);}
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-previous)/1000,.05);previous=now;if(document.hidden)return;state.time+=dt;const t=state.time,pal=palettes[state.weather],blend=1-Math.exp(-dt*1.8);nightMix=THREE.MathUtils.lerp(nightMix,pal.night,blend);rainMix=THREE.MathUtils.lerp(rainMix,pal.rain,blend);
 scene.background.lerp(tint.setHex(pal.bg),blend);scene.fog.color.copy(scene.background);floorMat.color.lerp(tint.setHex(pal.floor),blend);waterMat.color.lerp(tint.setHex(pal.water),blend);sides.forEach((s,i)=>s.color.lerp(tint.setHex(pal.side[i]),blend));cloudMat.color.lerp(tint.setHex(pal.cloud),blend);sun.intensity=THREE.MathUtils.lerp(sun.intensity,pal.sun,blend);hemi.intensity=THREE.MathUtils.lerp(hemi.intensity,pal.hemi,blend);fill.intensity=1.2-nightMix*.65;
-for(let i=0;i<wp.count;i++){const x=originals[i*3],z=originals[i*3+2];const edge=Math.max(0,1-(Math.abs(x)/5.8)**8-(Math.abs(z)/4.45)**8);wp.setY(i,wave(x,z,t)*edge*(1+rainMix*.4));}wp.needsUpdate=true;wg.computeVertexNormals();
-const pos=route(t),next=route(t+.12);ship.position.set(pos.x,wave(pos.x,pos.z,t)*.7+.05,pos.z);ship.rotation.set(.024*Math.sin(t*1.5),Math.atan2(next.x-pos.x,next.z-pos.z),.025*Math.sin(t*.8));flag.rotation.y=Math.sin(t*4)*.12;
-wakeClock+=dt;if(wakeClock>.1){emitWake(t);wakeClock=0;}for(const f of foam){const age=t-f.born;if(age>8){f.p.visible=false;continue;}f.p.position.x+=f.dx*dt*.065;f.p.position.z+=f.dz*dt*.065;f.p.position.y=.045+wave(f.p.position.x,f.p.position.z,t)*.6;const size=(.10+Math.min(age,3)*.035)*Math.max(.1,1-age/9);f.p.scale.set(size*(1+age*.25),.025,size*.8);f.p.material.opacity=Math.max(0,.8*(1-age/8));}
-birds.forEach(({g,wings,phase},i)=>{const a=t*.22+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.5,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;wings[0].rotation.z=Math.sin(t*3.7+phase)*.32;wings[1].rotation.z=-Math.sin(t*3.7+phase)*.32;g.scale.setScalar(1-nightMix*.2);});
+waterTime.value=t;for(let i=0;i<wp.count;i++){const x=originals[i*3],z=originals[i*3+2];wp.setY(i,wave(x,z,t));}wp.needsUpdate=true;wg.computeVertexNormals();
+const pos=route(t),next=route(t+.12),heading=Math.atan2(next.x-pos.x,next.z-pos.z);const dx=Math.sin(heading),dz=Math.cos(heading);ship.position.set(pos.x,wave(pos.x,pos.z,t)+.05,pos.z);ship.rotation.set((wave(pos.x-dx*.6,pos.z-dz*.6,t)-wave(pos.x+dx*.6,pos.z+dz*.6,t))*.42,heading,(wave(pos.x+dz*.3,pos.z-dx*.3,t)-wave(pos.x-dz*.3,pos.z+dx*.3,t))*.45);flag.rotation.y=Math.sin(t*4)*.12;
+wakeClock+=dt;if(wakeClock>.1){emitWake(t);wakeClock=0;}for(const f of foam){const age=t-f.born;if(age>8){f.p.visible=false;continue;}f.p.position.x+=f.dx*dt*.065;f.p.position.z+=f.dz*dt*.065;f.p.position.y=.035+wave(f.p.position.x,f.p.position.z,t);const size=(.10+Math.min(age,3)*.035)*Math.max(.1,1-age/9);f.p.scale.set(size*(1+age*.25),.025,size*.8);f.p.material.opacity=Math.max(0,.8*(1-age/8));}
+birds.forEach(({g,wings,phase},i)=>{const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.5,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;wings[0].rotation.z=Math.sin(t*2.4+phase)*.18;wings[1].rotation.z=-Math.sin(t*2.4+phase)*.18;g.scale.setScalar(1-nightMix*.2);});
 clouds.forEach((c,i)=>{c.scale.setScalar(Math.max(.001,1-nightMix));c.position.y=4.4+i*.5+Math.sin(t*.35+i)*.08;});moonGroup.scale.setScalar(Math.max(.001,nightMix));moonGroup.rotation.y=Math.sin(t*.12)*.1;starMat.opacity=nightMix*.8;stars.forEach((s,i)=>s.scale.setScalar(.7+Math.sin(t*1.2+i)*.3));
 glass.color.lerp(tint.setHex(nightMix>.3?0xffd68b:0x418fa5),blend);glass.emissive.setHex(0xffb642);glass.emissiveIntensity=nightMix*1.2;lampMat.emissiveIntensity=nightMix*2;shipLight.intensity=nightMix*3.5;
 rainMat.opacity=rainMix*.55;rain.visible=rainMix>.005;for(let i=0;i<rainCount;i++){const r=rainMeta[i];r.y-=dt*r.speed;if(r.y<.1)r.y=5.2;const k=i*6;rainArray[k]=r.x;rainArray[k+1]=r.y;rainArray[k+2]=r.z;rainArray[k+3]=r.x-.045;rainArray[k+4]=r.y+.19;rainArray[k+5]=r.z;}rainGeo.attributes.position.needsUpdate=true;
-ripples.forEach(r=>{const a=(t*.65+r.userData.phase)%1;r.scale.setScalar(.2+a*1.5);r.material.opacity=rainMix*(1-a)*.4;});glintMat.opacity=.35-nightMix*.2;glints.forEach((g,i)=>{g.position.y=.07+wave(g.position.x,g.position.z,t);g.scale.x=.7+Math.sin(t+i)*.3;});
+ ripples.forEach(r=>{const a=(t*.65+r.userData.phase)%1;r.scale.setScalar(.2+a*1.5);r.material.opacity=rainMix*(1-a)*.4;r.position.y=.025+wave(r.position.x,r.position.z,t);});ambience.tick();
 controls.update();renderer.render(scene,camera);
 }
 requestAnimationFrame(frame);document.querySelector('#loading').hidden=true;

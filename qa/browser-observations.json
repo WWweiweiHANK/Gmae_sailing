@@ -1,0 +1,184 @@
+{
+  "date": "2026-09-17",
+  "environment": "Codex in-app Chromium browser on Windows; NOT packaged Tauri/WebView2",
+  "aurora": {
+    "firstSteady": {
+      "timestamp": "2026-09-17T12:30:59.565Z",
+      "fps": 30,
+      "cpuMeanMs": 0.4413333356380463,
+      "cpuP95Ms": 0.6000000238418579,
+      "buffer": [
+        1280,
+        720
+      ],
+      "calls": 62,
+      "geometries": 62,
+      "textures": 1,
+      "programs": 9,
+      "jsHeapBytes": 22360521
+    },
+    "desktopSize": {
+      "timestamp": "2026-09-17T12:31:29.565Z",
+      "fps": 29.9988000479981,
+      "cpuMeanMs": 0.3933333357175191,
+      "cpuP95Ms": 0.5,
+      "buffer": [
+        560,
+        540
+      ],
+      "calls": 62,
+      "geometries": 62,
+      "textures": 1,
+      "programs": 9,
+      "jsHeapBytes": 14283950
+    },
+    "longRun": {
+      "timestamp": "2026-09-17T12:37:10.730Z",
+      "samples": 75,
+      "worldSeconds": 332.20620000003794,
+      "fpsRange": [
+        0.9933643263003208,
+        30.000198676812325
+      ],
+      "geometries": [
+        62,
+        62
+      ],
+      "textures": [
+        1,
+        1
+      ],
+      "programs": [
+        9,
+        9
+      ],
+      "jsHeapBytesRange": [
+        13732284,
+        40530635
+      ],
+      "jsHeapBytesLast": 18542526,
+      "note": "Viewport and audio/wave controls changed during sampling. Host later throttled the preview to about 1 FPS. This is not a stable-FPS benchmark."
+    }
+  },
+  "storm": {
+    "timestamp": "2026-09-17T12:38:33.500Z",
+    "fps": 1,
+    "cpuMeanMs": 1.119999992847443,
+    "cpuP95Ms": 1.199999988079071,
+    "buffer": [
+      560,
+      540
+    ],
+    "calls": 107,
+    "geometries": 83,
+    "textures": 1,
+    "programs": 10,
+    "note": "Host-throttled browser sample; does not validate the 30 FPS target."
+  },
+  "pause": {
+    "before": 28.916868000000008,
+    "after": 28.916868000000008,
+    "lastSampleFrameBefore": 120,
+    "lastSampleFrameAfter": 120
+  },
+  "alphaCorners": [
+    [
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0
+    ]
+  ],
+  "limitations": [
+    "No Windows executable created: MSVC link.exe missing.",
+    "No native click-through, tray, multi-monitor or OS DPI acceptance performed.",
+    "CPU submission time is not GPU frame time.",
+    "Renderer counters and JS heap do not cover native/GPU memory.",
+    "Long-run samples precede the final visible-gap timing fix and bounded missed wake spawning. Rendering assets/shaders unchanged; final build receives a shorter smoke check."
+  ],
+  "stormEnergy": {
+    "timestamp": "2026-09-17T12:40:37.894Z",
+    "fps": 19.999600007999817,
+    "cpuMeanMs": 0.8480000066757202,
+    "cpuP95Ms": 1.199999988079071,
+    "buffer": [
+      560,
+      540
+    ],
+    "calls": 107,
+    "geometries": 83,
+    "textures": 1,
+    "programs": 10,
+    "jsHeapBytes": 33151836,
+    "note": "Host resumed normal cadence. Six sampled 5-second intervals observed around 20 FPS, interrupted by one gap."
+  },
+  "sunny": {
+    "timestamp": "2026-09-17T12:41:37.644Z",
+    "fps": 29.999400011999768,
+    "cpuMeanMs": 0.7833333325386047,
+    "cpuP95Ms": 1.100000023841858,
+    "buffer": [
+      560,
+      540
+    ],
+    "calls": 98,
+    "geometries": 122,
+    "textures": 1,
+    "programs": 11,
+    "jsHeapBytes": 40069220,
+    "worldSeconds": 59.22630000000015
+  },
+  "storm30": {
+    "timestamp": "2026-09-17T12:43:07.029Z",
+    "fps": 29.999400011999818,
+    "cpuMeanMs": 0.8686666667461396,
+    "cpuP95Ms": 1,
+    "buffer": [
+      560,
+      540
+    ],
+    "calls": 107,
+    "geometries": 83,
+    "textures": 1,
+    "programs": 10,
+    "jsHeapBytes": 48122856,
+    "worldSeconds": 86.19329999999934
+  },
+  "finalStorm": {
+    "timestamp": "2026-09-17T12:45:13.265Z",
+    "fps": 29.9988000479981,
+    "cpuMeanMs": 0.830666667620341,
+    "cpuP95Ms": 1,
+    "buffer": [
+      560,
+      540
+    ],
+    "calls": 107,
+    "geometries": 83,
+    "textures": 1,
+    "programs": 10,
+    "jsHeapBytes": 55452786,
+    "worldSeconds": 127.84419999999834,
+    "samples": 25,
+    "consoleWarnings": 0,
+    "consoleErrors": 0
+  }
+}

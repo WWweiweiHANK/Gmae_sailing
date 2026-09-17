@@ -7,15 +7,16 @@ import { ambientMix } from './audio-mix.mjs';
 // Licensed field recordings are bundled into the standalone HTML. See SOUND_CREDITS.md.
 export function createAmbientAudio(onStateChange=()=>{}){
   let context,master,buses,buffers,loading,enabled=false,visible=!document.hidden;
-  let weather='sunny',volume=.22,nextCall=0,suspendTimer;
+  let weather='sunny',environment=null,lastMixedEnvironment=null,volume=.22,nextCall=0,suspendTimer,enableGeneration=0;
   const loops=[],shots=new Set();
   function clearShots(){for(const shot of shots)try{shot.stop();}catch{}shots.clear();}
   const smooth=(param,value,seconds=.65)=>param.setTargetAtTime(value,context.currentTime,seconds);
   function mix(){
     if(!context)return;
-    const levels=ambientMix(weather);
+    lastMixedEnvironment=environment;
+    const levels=environment?{sea:.5-environment.night*.18+environment.rain*.02,rain:environment.rain*.65,gull:environment.gulls?.22:0}:ambientMix(weather);
     for(const name of ['sea','rain','gull'])smooth(buses[name].gain,levels[name]);
-    smooth(buses.thunder.gain,['rainy','storm'].includes(weather)?.32:0,.5);
+    smooth(buses.thunder.gain,(environment?environment.rain>.05:['rainy','storm'].includes(weather))?.32:0,.5);
     smooth(master.gain,enabled&&visible?volume:0,.18);
   }
   function initialize(){
@@ -48,25 +49,28 @@ export function createAmbientAudio(onStateChange=()=>{}){
     source.connect(pan).connect(buses[name]);shots.add(source);source.onended=()=>{shots.delete(source);source.disconnect();pan.disconnect();};source.start(context.currentTime+delay);
   }
   async function setEnabled(value){
+    const generation=++enableGeneration;
     clearTimeout(suspendTimer);
     if(!value){enabled=false;clearShots();mix();onStateChange(false);if(context)suspendTimer=setTimeout(()=>{if(!enabled)void context.suspend();},1000);return false;}
     if(!context)initialize();
-    try{await context.resume();await load();enabled=context.state==='running';nextCall=context.currentTime+8+Math.random()*8;mix();onStateChange(enabled);tick();if(!visible)void setVisible(false);return enabled;}
-    catch(error){enabled=false;mix();onStateChange(false);void context.suspend();throw error;}
+    try{await context.resume();if(generation!==enableGeneration)return enabled;await load();if(generation!==enableGeneration)return enabled;enabled=context.state==='running';nextCall=context.currentTime+8+Math.random()*8;mix();onStateChange(enabled);tick();if(!visible)void setVisible(false);return enabled;}
+    catch(error){if(generation!==enableGeneration)return enabled;enabled=false;mix();onStateChange(false);void context.suspend();throw error;}
   }
   function tick(){
     if(!enabled||!visible||!buffers||context.state!=='running')return;
     const t=context.currentTime;for(const loop of loops)if(loop.next<t+.3)scheduleLoop(loop);
-    if(t>=nextCall){if(ambientMix(weather).gull>0)oneShot('gull');nextCall=t+26+Math.random()*24;}
+    if(t>=nextCall){if(environment?environment.gulls:ambientMix(weather).gull>0)oneShot('gull');nextCall=t+26+Math.random()*24;}
   }
   async function setVisible(value){
     visible=value;if(!context||!enabled)return;clearTimeout(suspendTimer);
     if(!visible){clearShots();mix();suspendTimer=setTimeout(()=>{if(!visible)void context.suspend();},1000);return;}
-    try{await context.resume();enabled=context.state==='running';}catch{enabled=false;}
+    const generation=enableGeneration;
+    try{await context.resume();if(generation!==enableGeneration||visible!==value)return;enabled=context.state==='running';}catch{if(generation!==enableGeneration||visible!==value)return;enabled=false;}
     mix();onStateChange(enabled);
   }
   return {setEnabled,setVisible,tick,
-    setWeather(value){weather=value;clearShots();mix();},
+    setWeather(value){weather=value;environment=null;clearShots();mix();},
+    setEnvironment(value){const old=lastMixedEnvironment;environment=value;if(context&&(!old||Math.abs(old.rain-value.rain)>.01||Math.abs(old.night-value.night)>.01||old.gulls!==value.gulls))mix();},
     setVolume(value){volume=Math.max(0,Math.min(1,value));mix();},
     thunder(){oneShot('thunder',1.4+Math.random()*.8);},
     get enabled(){return enabled;},get loaded(){return buffers?Object.keys(buffers):[];}

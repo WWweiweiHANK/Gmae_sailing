@@ -1,1 +1,23 @@
-{"name":"tiny-tides","private":true,"type":"module","scripts":{"build":"node build.mjs","test":"node --test scene.test.mjs"},"dependencies":{"three":"0.180.0"},"devDependencies":{"esbuild":"0.25.10"}}
+{
+  "name": "tiny-tides",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test scene.test.mjs desktop.test.mjs",
+    "preview": "node scripts/preview.mjs",
+    "qa": "node build.mjs --qa",
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "desktop:check": "cargo check --manifest-path src-tauri/Cargo.toml"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
+    "esbuild": "0.25.10"
+  }
+}

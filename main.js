@@ -1,36 +1,45 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { route, chooseWeather, seaHeight, advanceWeather, weatherEvents, WEATHER_ORDER, updateGullVisibility } from './motion.mjs';
+import { route, seaHeight, updateGullVisibility } from './motion.mjs';
 import { createAmbientAudio } from './ambient-audio.mjs';
 import { createVoyageEffects } from './scene-effects.mjs';
 import { auroraColorGLSL } from './aurora.mjs';
 
+import {createEnvironment} from './environment.mjs';
+import {drawingSize,createFrameClock} from './render-budget.mjs';
+import {connectDesktop} from './desktop-bridge.mjs';
+import {createWake} from './wake-pool.mjs';
+import {seaVertexGLSL} from './water-shader.mjs';
+import {createPerformanceMonitor} from './performance-monitor.mjs';
 const canvas = document.querySelector('#scene');
 function showError(text) { document.querySelector('#loading').hidden=true;const el=document.querySelector('#error');el.hidden=false;el.textContent=text; }
-try { start(); } catch (error) { console.error(error);showError('场景未能启动。请使用支持 WebGL 2 的新版浏览器，并开启硬件加速。'); }
-function start() {
-const scene = new THREE.Scene();scene.fog=new THREE.Fog(0xc5d4b8,55,110);
-const soundButton=document.querySelector('#sound');
-function updateSoundButton(active){soundButton.setAttribute('aria-pressed',String(active));soundButton.setAttribute('aria-label',active?'关闭环境音':'开启环境音');soundButton.querySelector('span').textContent=active?'声音开':'听海';document.querySelector('#volume-control').hidden=!active;}
-const ambience=createAmbientAudio(updateSoundButton);
-const waveSlider=document.querySelector('#wave-size'),waveOutput=document.querySelector('#wave-value');
+start().catch(error=>{console.error(error);showError('场景未能启动，请检查 WebGL 2 / WebView2。托盘仍可退出或重置。');});
+async function start() {
+const scene=new THREE.Scene();
+let nativeState={editing:false,paused:false,visible:true,minimized:false,settings:{fps:30,wave:1,sound:false,camera:null}},bridge;
 let waveTarget=2.2;const waveStrength={value:waveTarget};
-waveSlider.addEventListener('input',()=>{waveTarget=Number(waveSlider.value)*.022;waveOutput.value=waveSlider.value+'%';});
-document.querySelector('#volume').addEventListener('input',e=>ambience.setVolume(Number(e.target.value)/100));
-const localTime=document.querySelector('#local-time');
-function updateClock(){const date=new Date();localTime.textContent=date.toLocaleTimeString('zh-CN',{hour12:false});localTime.dateTime=date.toISOString();}updateClock();setInterval(updateClock,1000);
-soundButton.addEventListener('click',async()=>{soundButton.disabled=true;try{const active=await ambience.setEnabled(!ambience.enabled);document.querySelector('#status').textContent=active?'环境音已开启':'环境音已关闭';}catch(error){console.warn(error);document.querySelector('#status').textContent='环境音暂时无法开启，请再次点击重试';}finally{soundButton.disabled=false;}});
-const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
+const soundButton=document.querySelector('#sound'),waveSlider=document.querySelector('#wave-size');
+const ambience=createAmbientAudio(active=>{soundButton.textContent=active?'静音':'听海';soundButton.setAttribute('aria-pressed',String(active));});
+const qa=typeof __QA__!=='undefined'&&__QA__;
+const query=new URLSearchParams(location.search),scenario=qa?query.get('scenario'):null;
+const initial=scenario==='storm'?{weather:'storm'}:scenario==='aurora'?{period:'night',aurora:true}:{};
+const environment=createEnvironment(Math.random,{...initial,fixed:qa});
+const clock=createFrameClock();let timer=0,raf=0,contextLost=false;
+let savedCameraApplied=false,lastNativeSound=false,saveTimer=0;
+const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,premultipliedAlpha:true,powerPreference:'low-power'});
+renderer.setClearColor(0x000000,0);renderer.setPixelRatio(1);
+let buffer;function resizeBuffer(){buffer=drawingSize(innerWidth,innerHeight,devicePixelRatio,nativeState.settings.fps);renderer.setSize(buffer.width,buffer.height,false);}
+resizeBuffer();const monitor=createPerformanceMonitor(renderer);
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
 const camera=new THREE.PerspectiveCamera(36,innerWidth/innerHeight,.1,150);
-const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.055;controls.enablePan=false;
-controls.minDistance=11;controls.maxDistance=62;controls.minPolarAngle=.2;controls.maxPolarAngle=1.35;controls.target.set(0,.45,0);
-function resetView(){camera.position.set(13,15,16).multiplyScalar(Math.max(1,1.02/camera.aspect));controls.target.set(0,.45,0);controls.update();}resetView();
-document.querySelector('#reset').addEventListener('click',resetView);
+const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.12;controls.enablePan=false;
+controls.minPolarAngle=.25;controls.maxPolarAngle=1.30;controls.target.set(0,2.35,0);
+function fitCamera(){const fov=Math.min(camera.fov*Math.PI/360,Math.atan(Math.tan(camera.fov*Math.PI/360)*camera.aspect));controls.minDistance=8.2/Math.sin(fov)*1.06;controls.maxDistance=controls.minDistance*1.45;const distance=camera.position.distanceTo(controls.target);if(distance<controls.minDistance)camera.position.sub(controls.target).setLength(controls.minDistance).add(controls.target);}
+function resetView(){controls.target.set(0,2.35,0);camera.position.set(13,16,18);fitCamera();camera.position.sub(controls.target).setLength(controls.minDistance*1.02).add(controls.target);controls.update();}resetView();
+document.querySelector('#reset').addEventListener('click',()=>{resetView();saveView();});
 const hemi=new THREE.HemisphereLight(0xe8f9ff,0x859ba9,2.3);scene.add(hemi);
-const sun=new THREE.DirectionalLight(0xfff4df,3.2);sun.position.set(-5,12,6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-10;sun.shadow.camera.right=10;sun.shadow.camera.top=10;sun.shadow.camera.bottom=-10;sun.shadow.normalBias=.04;sun.shadow.bias=-.0003;sun.shadow.radius=4;scene.add(sun);
+const sun=new THREE.DirectionalLight(0xfff4df,3.2);sun.position.set(-5,12,6);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-10;sun.shadow.camera.right=10;sun.shadow.camera.top=10;sun.shadow.camera.bottom=-10;sun.shadow.normalBias=.04;sun.shadow.bias=-.0003;sun.shadow.radius=4;scene.add(sun);
 const fill=new THREE.DirectionalLight(0xa0d5ff,1.2);fill.position.set(6,5,-7);scene.add(fill);
 const mat=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.85,flatShading:true,...extra});
 const white=mat(0xfffcf2), navy=mat(0x284c65), orange=mat(0xf16c3d), deckMat=mat(0xd5dece), glass=mat(0x418fa5,{roughness:.3}), railMat=mat(0xf5f6e9);
@@ -45,13 +54,13 @@ function slab(top,bottom,color,scale=1){const pos=[],idx=[];for(let i=0;i<=96;i+
 const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setIndex(idx);geo.computeVertexNormals();const m=mat(color,{side:THREE.DoubleSide});const obj=mesh(geo,m);sides.push(m);return obj;}
 slab(-.96,-1.17,0xe9e7d8,1.025);slab(-.62,-.96,0x12628d);slab(-.3,-.62,0x087fab);slab(0,-.3,0x12a6c6);
 const capVertices=[0,-.96,0],capIndices=[];for(let i=0;i<=96;i++){const [x,z]=boundary(i/96*Math.PI*2,1.025);capVertices.push(x,-.96,z);if(i<96)capIndices.push(0,i+2,i+1);}const capGeo=new THREE.BufferGeometry();capGeo.setAttribute('position',new THREE.Float32BufferAttribute(capVertices,3));capGeo.setIndex(capIndices);capGeo.computeVertexNormals();mesh(capGeo,sides[0]);
-const n=96,m=76,vertices=[],indices=[];
+const n=64,m=48,vertices=[],indices=[];
 for(let j=0;j<=m;j++)for(let i=0;i<=n;i++){let u=i/n*2-1,v=j/m*2-1;const d=(Math.abs(u)**4.65+Math.abs(v)**4.65)**(1/4.65);const f=d?Math.max(Math.abs(u),Math.abs(v))/d:1;vertices.push(u*f*5.8,0,v*f*4.45);}
 for(let j=0;j<m;j++)for(let i=0;i<n;i++){const a=j*(n+1)+i;indices.push(a,a+n+1,a+1,a+1,a+n+1,a+n+2);}
 const wg=new THREE.BufferGeometry();wg.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));wg.setIndex(indices);
-const wp=wg.attributes.position;const originals=wp.array.slice();
-wg.computeVertexNormals();const waterMat=new THREE.MeshLambertMaterial({color:0x367f99});const waterTime={value:15};const auroraGlow={value:0};
-waterMat.onBeforeCompile=shader=>{shader.uniforms.uWaveStrength=waveStrength;shader.uniforms.uSeaTime=waterTime;shader.uniforms.uAuroraGlow=auroraGlow;shader.vertexShader='varying vec3 vSeaPosition;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvSeaPosition=position;');shader.fragmentShader='uniform float uWaveStrength;\nuniform float uSeaTime;\nuniform float uAuroraGlow;\nvarying vec3 vSeaPosition;\n'+auroraColorGLSL+'\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+
+wg.computeVertexNormals();const waterMat=new THREE.MeshLambertMaterial({color:0x367f99});const waterTime={value:15};const waterRain={value:0};const auroraGlow={value:0};
+waterMat.onBeforeCompile=shader=>{shader.uniforms.uRain=waterRain;shader.uniforms.uWaveStrength=waveStrength;shader.uniforms.uSeaTime=waterTime;shader.uniforms.uAuroraGlow=auroraGlow;shader.vertexShader=seaVertexGLSL+'\nvarying vec3 vSeaPosition;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nobjectNormal=normalize(vec3(seaHeightAt(position.xz-vec2(.03,0.))-seaHeightAt(position.xz+vec2(.03,0.)),.06,seaHeightAt(position.xz-vec2(0.,.03))-seaHeightAt(position.xz+vec2(0.,.03))));');shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed.y=seaHeightAt(position.xz);vSeaPosition=transformed;');shader.fragmentShader='uniform float uWaveStrength;\nuniform float uSeaTime;\nuniform float uAuroraGlow;\nvarying vec3 vSeaPosition;\n'+auroraColorGLSL+'\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
   vec2 sea=vSeaPosition.xz;
   float phase=sea.x*.55+sea.y*1.15-uSeaTime*.46;
   float swellTone=.98+.085*sin(phase)+.025*sin(sea.x*1.05-sea.y*.55-uSeaTime*.31);
@@ -59,10 +68,6 @@ waterMat.onBeforeCompile=shader=>{shader.uniforms.uWaveStrength=waveStrength;sha
   diffuseColor.rgb*=.98+(swellTone-.98+flow)*min(uWaveStrength,3.);
 `);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=auroraWaterLight(vSeaPosition,uSeaTime)*uAuroraGlow;');};
 const water=mesh(wg,waterMat);water.castShadow=false;
-const floorMat=mat(0x9fb68c);const floor=mesh(new THREE.PlaneGeometry(200,200),floorMat,scene,0,-1.38,0);floor.rotation.x=-Math.PI/2;floor.castShadow=false;
-// A feathered contact shadow anchors the little world to the tabletop.
-const shadowCanvas=document.createElement('canvas');shadowCanvas.width=128;shadowCanvas.height=128;const ctx=shadowCanvas.getContext('2d');const grad=ctx.createRadialGradient(64,64,5,64,64,64);grad.addColorStop(0,'rgba(22,60,77,.26)');grad.addColorStop(.65,'rgba(22,60,77,.12)');grad.addColorStop(1,'rgba(22,60,77,0)');ctx.fillStyle=grad;ctx.fillRect(0,0,128,128);
-const shadow=mesh(new THREE.PlaneGeometry(17,13),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(shadowCanvas),transparent:true,depthWrite:false}),scene,0,-1.365,0);shadow.rotation.x=-Math.PI/2;shadow.castShadow=false;
 const ship=new THREE.Group();scene.add(ship);
 // The hull is built in stacked rings: broad shoulders, a rounded bow and tapered keel.
 const outline=[[-.48,-1.15],[-.65,-.75],[-.65,.45],[-.45,.98],[0,1.32],[.45,.98],[.65,.45],[.65,-.75],[.48,-1.15]];
@@ -90,61 +95,93 @@ const moonGroup=new THREE.Group();moonGroup.position.set(-3.3,4.4,-2.6);scene.ad
 const moonShape=new THREE.Shape();moonShape.moveTo(.18,.65);moonShape.bezierCurveTo(-.65,.65,-.88,-.4,-.13,-.68);moonShape.bezierCurveTo(.38,-.85,.81,-.42,.76,-.12);moonShape.bezierCurveTo(.1,-.45,-.22,.25,.18,.65);
 const moon=mesh(new THREE.ExtrudeGeometry(moonShape,{depth:.14,bevelEnabled:true,bevelSize:.025,bevelThickness:.025,bevelSegments:1,curveSegments:15}),new THREE.MeshStandardMaterial({color:0xffefbc,emissive:0xffd487,emissiveIntensity:.8,roughness:.7}),moonGroup);moon.rotation.y=.45;
 const effects=createVoyageEffects(scene);
-const foamGeo=new THREE.IcosahedronGeometry(1,0),foam=[];
-for(let i=0;i<200;i++){const material=new THREE.MeshBasicMaterial({color:0xf4ffff,transparent:true,opacity:0,depthWrite:false});const p=mesh(foamGeo,material);p.castShadow=false;p.visible=false;foam.push({p,born:-999,side:0,dx:0,dz:0});}let foamCursor=0,wakeClock=0;
-function emitWake(t){const pos=route(t),next=route(t+.08);let dx=next.x-pos.x,dz=next.z-pos.z;const len=Math.hypot(dx,dz);dx/=len;dz/=len;for(const side of [-1,1]){const f=foam[foamCursor++%foam.length];f.born=t;f.side=side;f.dx=dz*side;f.dz=-dx*side;f.p.position.set(pos.x-dx*1.04+dz*side*.34,.06,pos.z-dz*1.04-dx*side*.34);f.p.visible=true;f.p.rotation.y=Math.random()*6;}}
+const wake=createWake(scene);
 const rainCount=1100,rainArray=new Float32Array(rainCount*6),rainMeta=[];for(let i=0;i<rainCount;i++){const x=(Math.random()-.5)*10,z=(Math.random()-.5)*7.3;rainMeta.push({x,z,y:Math.random()*5.2,speed:4+Math.random()*2});}
 const rainGeo=new THREE.BufferGeometry();rainGeo.setAttribute('position',new THREE.BufferAttribute(rainArray,3));const rainMat=new THREE.LineBasicMaterial({color:0xd7f4ff,transparent:true,opacity:0,depthWrite:false});const rain=new THREE.LineSegments(rainGeo,rainMat);scene.add(rain);
 const ripples=[];for(let i=0;i<24;i++){const r=mesh(new THREE.RingGeometry(.14,.16,18),new THREE.MeshBasicMaterial({color:0xcce7ee,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));r.rotation.x=-Math.PI/2;r.position.set((Math.random()-.5)*9,.06,(Math.random()-.5)*6.8);r.castShadow=false;r.userData.phase=Math.random();ripples.push(r);}
-const palettes={
- sunny:{bg:0xf0f0ea,floor:0xe6e8e3,water:0x337e9b,side:[0xe8e5d9,0x245a78,0x327d94,0x4a9aa8],sun:2.25,hemi:2,night:0,rain:0,light:0xfff5e2},
- rainy:{bg:0xc1c9d0,floor:0xadb9c2,water:0x37697e,side:[0xc1c8c9,0x2d4f67,0x3b6b7f,0x56818c],sun:.7,hemi:1.7,night:0,rain:.32,light:0xcbd9ed},
- storm:{bg:0x66717f,floor:0x576575,water:0x2b526d,side:[0x8999a9,0x203b57,0x305774,0x47718a],sun:.45,hemi:1.4,night:0,rain:1,light:0xb9c9e4},
- dusk:{bg:0xead8ca,floor:0xe6d5c4,water:0x467e9a,side:[0xd5bca0,0x425568,0x557887,0x779396],sun:2.4,hemi:1.7,night:0,rain:0,light:0xffc17c},
- night:{bg:0x101722,floor:0x111c2a,water:0x193b58,side:[0x697689,0x152e49,0x234866,0x37627c],sun:.65,hemi:1.1,night:1,rain:0,light:0x9ebce9}
+const periodPalettes={
+ day:{water:0x337e9b,side:[0xe8e5d9,0x245a78,0x327d94,0x4a9aa8],sun:2.25,hemi:2,light:0xfff5e2},
+ dusk:{water:0x467e9a,side:[0xd5bca0,0x425568,0x557887,0x779396],sun:2.4,hemi:1.7,light:0xffc17c},
+ night:{water:0x193b58,side:[0x697689,0x152e49,0x234866,0x37627c],sun:.65,hemi:1.1,light:0x9ebce9},
+ dawn:{water:0x548c9c,side:[0xcac2b4,0x34556c,0x4a7d90,0x71a3af],sun:1.45,hemi:1.6,light:0xffd8c1}
 };
-const state={time:15,weather:'sunny',elapsed:0};let nightMix=0,rainMix=0,duskMix=0,nightVisits=0,events=weatherEvents('sunny');scene.background=new THREE.Color(palettes.sunny.bg);
-const countdown=document.querySelector('#countdown');const btns=[...document.querySelectorAll('[data-mode]')];
-let appliedWeather=null,firstNight=false;
-function applyWeather(){
- if(appliedWeather!==state.weather){firstNight=state.weather==='night'&&nightVisits===0;if(state.weather==='night')nightVisits++;appliedWeather=state.weather;}
- events=weatherEvents(state.weather,Math.random,firstNight);ambience.setWeather(state.weather);document.body.dataset.weather=state.weather;
- btns.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===state.weather)));
- const i=WEATHER_ORDER.indexOf(state.weather);document.querySelector('#mode-index').textContent=String(i+1).padStart(2,'0');
- document.querySelector('#mood').textContent=['晴光，与海豚同行。','细雨，落在蓝色的海。','远雷，潮水起伏。','日落，海面染上金色。','极光，盛着梦的小海。'][i];
- document.querySelector('#status').textContent=['已切换晴天','已切换小雨','已切换暴雨','已切换黄昏','已切换夜景'][i];
-}
-function setWeather(mode){if(!WEATHER_ORDER.includes(mode))return;chooseWeather(state,mode);applyWeather();}
-btns.forEach(b=>b.addEventListener('click',()=>setWeather(b.dataset.mode)));
-if(document.modelContext?.registerTool){
- const register=tool=>{try{Promise.resolve(document.modelContext.registerTool(tool)).catch(()=>{});}catch{}};
- register({name:'set_ocean_weather',title:'切换小海天气',description:'切换晴天、小雨、暴雨、黄昏或夜景。重启约60秒天气计时，保持航线和视角。',inputSchema:{type:'object',properties:{weather:{type:'string',enum:WEATHER_ORDER}},required:['weather'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!WEATHER_ORDER.includes(input?.weather))throw new Error('无效天气');setWeather(input.weather);return {weather:state.weather};}});
- register({name:'get_ocean_state',title:'查看航行状态',description:'查看天气、航行时间、下次天气变化和环境音状态。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(){return {weather:state.weather,voyageSeconds:state.time,weatherSeconds:state.elapsed,nextWeatherIn:Math.ceil(60-state.elapsed),audioEnabled:ambience.enabled,recordingsLoaded:ambience.loaded};}});
-}
-applyWeather();
-for(let t=state.time-8;t<state.time;t+=.12)emitWake(t);
-canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();showError('图形上下文暂时丢失，请刷新页面重新打开小海。');});
-window.addEventListener('resize',()=>{const oldFit=Math.max(1,1.02/camera.aspect);camera.aspect=innerWidth/innerHeight;camera.position.sub(controls.target).multiplyScalar(Math.max(1,1.02/camera.aspect)/oldFit).add(controls.target);camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
-document.addEventListener('visibilitychange',()=>{previous=performance.now();ambience.setVisible(!document.hidden);});
-const tint=new THREE.Color();let previous=performance.now();
+const state={time:15};let nightMix=0,rainMix=0,duskMix=0;
+const events={dolphinsAt:8+Math.random()*10,auroraAt:Infinity,lightningAt:Infinity};let dolphinEligible=false,lastStorm=false;
+const tint=new THREE.Color(),otherTint=new THREE.Color();
+function paint(material,from,to,mix,shade=0){material.color.copy(tint.setHex(from).lerp(otherTint.setHex(to),mix)).multiplyScalar(1-shade*.28);}
 function wave(x,z,t){return seaHeight(x,z,t,rainMix,waveStrength.value);}
-function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-previous)/1000,.05);previous=now;if(document.hidden)return;state.time+=dt;if(advanceWeather(state,dt))applyWeather();countdown.textContent=String(Math.ceil(60-state.elapsed)).padStart(2,'0');const t=state.time,pal=palettes[state.weather],blend=1-Math.exp(-dt*1.8);nightMix=THREE.MathUtils.lerp(nightMix,pal.night,blend);rainMix=THREE.MathUtils.lerp(rainMix,pal.rain,blend);duskMix=THREE.MathUtils.lerp(duskMix,state.weather==='dusk'?1:0,blend);
-sun.color.lerp(tint.setHex(pal.light),blend);sun.position.set(-7,12-duskMix*8,6);hemi.color.lerp(tint.setHex(state.weather==='dusk'?0xffecd7:0xe1eeff),blend);
-if(state.elapsed>=events.lightningAt){effects.lightning();ambience.thunder();events.lightningAt=state.weather==='storm'?state.elapsed+16+Math.random()*15:Infinity;}
-waveStrength.value=THREE.MathUtils.lerp(waveStrength.value,waveTarget,1-Math.exp(-dt*3));
-effects.update({...state,events,nightMix,dt,wave});auroraGlow.value=effects.waterGlow.value;
-sides.forEach((material,i)=>{material.emissive.setHSL(.47+.065*Math.sin(t*.075+i*.8),.62,.16);material.emissiveIntensity=auroraGlow.value*(i===0?.025:.12);});
-scene.background.lerp(tint.setHex(pal.bg),blend);scene.fog.color.copy(scene.background);floorMat.color.lerp(tint.setHex(pal.floor),blend);waterMat.color.lerp(tint.setHex(pal.water),blend);sides.forEach((s,i)=>s.color.lerp(tint.setHex(pal.side[i]),blend));sun.intensity=THREE.MathUtils.lerp(sun.intensity,pal.sun,blend);hemi.intensity=THREE.MathUtils.lerp(hemi.intensity,pal.hemi,blend);fill.intensity=1.1-nightMix*.55-duskMix*.55;
-waterTime.value=t;for(let i=0;i<wp.count;i++){const x=originals[i*3],z=originals[i*3+2];wp.setY(i,wave(x,z,t));}wp.needsUpdate=true;wg.computeVertexNormals();
-const pos=route(t),next=route(t+.12),heading=Math.atan2(next.x-pos.x,next.z-pos.z);const dx=Math.sin(heading),dz=Math.cos(heading);ship.position.set(pos.x,wave(pos.x,pos.z,t)+.05,pos.z);ship.rotation.set((wave(pos.x-dx*.6,pos.z-dz*.6,t)-wave(pos.x+dx*.6,pos.z+dz*.6,t))*.42,heading,(wave(pos.x+dz*.3,pos.z-dx*.3,t)-wave(pos.x-dz*.3,pos.z+dx*.3,t))*.45);flag.rotation.y=Math.sin(t*4)*.12;
-wakeClock+=dt;if(wakeClock>.1){emitWake(t);wakeClock=0;}for(const f of foam){const age=t-f.born;if(age>8){f.p.visible=false;continue;}f.p.position.x+=f.dx*dt*.065;f.p.position.z+=f.dz*dt*.065;f.p.position.y=.035+wave(f.p.position.x,f.p.position.z,t);const size=(.10+Math.min(age,3)*.035)*Math.max(.1,1-age/9);f.p.scale.set(size*(1+age*.25),.025,size*.8);f.p.material.opacity=Math.max(0,.8*(1-age/8));}
-birds.forEach(({g,wings,phase},i)=>{updateGullVisibility(g,state.weather,i,dt);if(!g.visible)return;const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.15,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;wings[0].rotation.z=Math.sin(t*2.4+phase)*.18;wings[1].rotation.z=-Math.sin(t*2.4+phase)*.18;});
-moonGroup.scale.setScalar(Math.max(.001,nightMix*.56));moonGroup.rotation.y=Math.sin(t*.12)*.1;
-const lampMix=Math.max(nightMix,duskMix*.7,rainMix*.5);
-glass.color.lerp(tint.setHex(lampMix>.3?0xffd68b:0x418fa5),blend);glass.emissive.setHex(0xffb642);glass.emissiveIntensity=lampMix*1.2;lampMat.emissiveIntensity=lampMix*2;shipLight.intensity=lampMix*3.5;
-rainMat.opacity=Math.min(.48,rainMix*.6);rainGeo.setDrawRange(0,Math.floor(150+rainMix*950)*2);rain.visible=rainMix>.005;for(let i=0;i<rainCount;i++){const r=rainMeta[i];r.y-=dt*r.speed*(.7+rainMix*.9);if(r.y<.1)r.y=5.2;const k=i*6;rainArray[k]=r.x;rainArray[k+1]=r.y;rainArray[k+2]=r.z;rainArray[k+3]=r.x-.025-rainMix*.12;rainArray[k+4]=r.y+.12+rainMix*.18;rainArray[k+5]=r.z;}rainGeo.attributes.position.needsUpdate=true;
- ripples.forEach(r=>{const a=(t*.65+r.userData.phase)%1;r.scale.setScalar(.2+a*1.5);r.material.opacity=rainMix*(1-a)*.4;r.position.y=.025+wave(r.position.x,r.position.z,t);});ambience.tick();
-controls.update();renderer.render(scene,camera);
+function cameraRecord(){return {position:camera.position.toArray(),target:controls.target.toArray()};}
+function saveView(){if(!nativeState.editing)return;clearTimeout(saveTimer);saveTimer=setTimeout(()=>bridge?.save(cameraRecord(),waveTarget/2.2).catch(console.warn),300);}
+function restoreView(record){if(!record||!Array.isArray(record.position)||!Array.isArray(record.target)||[...record.position,...record.target].length!==6||![...record.position,...record.target].every(Number.isFinite))return;
+ camera.position.fromArray(record.position);controls.target.set(0,2.35,0);fitCamera();controls.update();}
+controls.addEventListener('change',saveView);
+waveSlider.addEventListener('input',()=>{waveTarget=Number(waveSlider.value)*.022;document.querySelector('#wave-value').value=waveSlider.value+'%';saveView();});
+function active(){return !contextLost&&!nativeState.paused&&nativeState.visible&&!nativeState.minimized&&(bridge?.native||!document.hidden);}
+let previousActive=false;
+function syncScheduler(){const run=active();if(run===previousActive)return;previousActive=run;clock.reset();monitor.resetInterval();void ambience.setVisible(run);cancelAnimationFrame(raf);clearTimeout(timer);if(run)raf=requestAnimationFrame(frame);}
+function showNative(next){const oldFps=nativeState.settings.fps,oldWave=nativeState.settings.wave;nativeState=next;
+ document.body.dataset.editing=String(next.editing);controls.enabled=next.editing;
+ if(next.settings.wave!==oldWave){waveTarget=next.settings.wave*2.2;waveSlider.value=String(next.settings.wave*100);document.querySelector('#wave-value').value=waveSlider.value+'%';}
+ if(!savedCameraApplied){restoreView(next.settings.camera);savedCameraApplied=true;}
+ if(oldFps!==next.settings.fps)resizeBuffer();
+ if(next.settings.sound!==lastNativeSound){lastNativeSound=next.settings.sound;ambience.setEnabled(next.settings.sound).catch(()=>{document.querySelector('#status').textContent='声音未能开启，请在编辑模式点击听海。';});}
+ document.querySelector('#pause').textContent=next.paused?'继续':'暂停';document.querySelector('#fps').value=String(next.settings.fps);syncScheduler();
 }
-requestAnimationFrame(frame);document.querySelector('#loading').hidden=true;
+bridge=await connectDesktop(showNative,()=>{resetView();saveView();},()=>report());document.body.dataset.native=String(bridge.native);
+if(!bridge.native){try{const record=JSON.parse(localStorage.getItem('tiny-tides-view'));if(record){restoreView(record.camera);waveTarget=Math.max(0,Math.min(2,record.wave))*2.2;waveSlider.value=String(waveTarget/.022);document.querySelector('#wave-value').value=waveSlider.value+'%';}}catch{}}
+soundButton.addEventListener('click',()=>{if(bridge.native){void ambience.setEnabled(!ambience.enabled).then(enabled=>{if(enabled!==nativeState.settings.sound)return bridge.action('sound');}).catch(console.warn);}else void bridge.action('sound');});
+document.querySelector('#drag').addEventListener('pointerdown',event=>{if(event.button!==0)return;event.preventDefault();event.stopPropagation();void bridge.drag().catch(console.warn);});
+document.querySelector('#lock').addEventListener('click',()=>bridge.action('lock'));
+document.querySelector('#edit').addEventListener('click',()=>bridge.action('edit'));
+document.querySelector('#pause').addEventListener('click',()=>bridge.action('pause'));
+document.querySelector('#fps').addEventListener('change',event=>bridge.action('fps'+event.target.value));
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&bridge.native&&nativeState.editing)void bridge.action('lock');});
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();fitCamera();resizeBuffer();});
+document.addEventListener('visibilitychange',syncScheduler);
+canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();contextLost=true;syncScheduler();showError('图形上下文已暂停；恢复后自动继续。');});
+canvas.addEventListener('webglcontextrestored',()=>{contextLost=false;document.querySelector('#error').hidden=true;syncScheduler();});
+let latestEnvironment=environment.snapshot();
+function report(){return {...monitor.report(),environment:latestEnvironment,paused:!active(),camera:cameraRecord(),rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha};}
+let lastAlpha=null,diagnosticAt=0;
+if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'get_ocean_state',title:'查看桌宠状态与实测性能',description:'只读场景状态、帧率、CPU提交时间及资源数量。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:report});}
+if(qa){document.body.dataset.qa='true';document.querySelector('#qa-panel').hidden=false;document.querySelector('#wallpaper').addEventListener('change',e=>{document.body.dataset.wallpaper=e.target.value;});}
+document.querySelector('#export').addEventListener('click',()=>{const data=report();void bridge.diagnostics(data);const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='tiny-tides-diagnostics.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+function frame(now){
+ if(!active()){syncScheduler();return;}raf=requestAnimationFrame(frame);
+ const dt=clock.tick(now,true,nativeState.settings.fps);if(!dt)return;const cpuStart=performance.now();
+ state.time+=dt;environment.advance(dt);const env=environment.snapshot();latestEnvironment=env;const t=state.time,from=periodPalettes[env.fromPeriod],pal=periodPalettes[env.period],mix=env.periodBlend;
+ nightMix=env.night;rainMix=env.rain;duskMix=(env.fromPeriod==='dusk'?1:0)*(1-mix)+(env.period==='dusk'?1:0)*mix;
+ waveStrength.value+=(waveTarget-waveStrength.value)*(1-Math.exp(-dt*3));
+ const canDolphin=env.period==='day'&&env.weather==='clear';
+ if(canDolphin&&!dolphinEligible)events.dolphinsAt=env.worldTime+8+Math.random()*10;
+ if(canDolphin&&env.worldTime>events.dolphinsAt+14)events.dolphinsAt=env.worldTime+90+Math.random()*90;
+ dolphinEligible=canDolphin;
+ if(env.weather==='storm'&&!lastStorm)events.lightningAt=env.worldTime+8+Math.random()*16;
+ lastStorm=env.weather==='storm';if(lastStorm&&env.worldTime>=events.lightningAt){effects.lightning();ambience.thunder();events.lightningAt=env.worldTime+18+Math.random()*28;}
+ const effectWeather=canDolphin?'sunny':env.weather==='storm'?'storm':env.rain>.05?'rainy':'night';events.auroraAt=env.auroraAt;
+ effects.update({time:t,elapsed:env.worldTime,weather:effectWeather,events,nightMix,dt,wave,auroraWeather:env.auroraAllowed?'night':'sunny',auroraElapsed:env.worldTime});auroraGlow.value=effects.waterGlow.value;
+ paint(waterMat,from.water,pal.water,mix,env.shade);
+ sides.forEach((s,i)=>{paint(s,from.side[i],pal.side[i],mix,env.shade);s.emissive.setHSL(.47+.065*Math.sin(t*.075+i*.8),.62,.16);s.emissiveIntensity=auroraGlow.value*(i===0?.025:.12);});
+ sun.color.copy(tint.setHex(from.light).lerp(otherTint.setHex(pal.light),mix));sun.position.set(-7,12-duskMix*8,6);
+ sun.intensity=(from.sun+(pal.sun-from.sun)*mix)*(1-env.shade*.76);hemi.intensity=(from.hemi+(pal.hemi-from.hemi)*mix)*(1-env.shade*.15);fill.intensity=1.1-nightMix*.55-duskMix*.55;
+ waterTime.value=t;waterRain.value=rainMix;
+ const pos=route(t),next=route(t+.12),heading=Math.atan2(next.x-pos.x,next.z-pos.z);const dx=Math.sin(heading),dz=Math.cos(heading);ship.position.set(pos.x,wave(pos.x,pos.z,t)+.05,pos.z);ship.rotation.set((wave(pos.x-dx*.6,pos.z-dz*.6,t)-wave(pos.x+dx*.6,pos.z+dz*.6,t))*.42,heading,(wave(pos.x+dz*.3,pos.z-dx*.3,t)-wave(pos.x-dz*.3,pos.z+dx*.3,t))*.45);flag.rotation.y=Math.sin(t*4)*.12;
+ wake.update(t,dt,wave);
+ birds.forEach(({g,wings,phase},i)=>{
+  const mode=env.period==='night'||env.weather==='storm'?'night':env.weather==='clear'?'sunny':'rainy';if(env.stormWarning){g.userData.fade=(g.userData.fade??1)*Math.exp(-dt*1.5);g.traverse(p=>{if(p.isMesh)p.material.opacity=g.userData.fade;});g.visible=g.userData.fade>.005;}else updateGullVisibility(g,mode,i,dt);if(!g.visible)return;
+  const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.15,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;
+  if(env.stormWarning){g.position.x+=Math.min(1.5,(1-g.userData.fade)*1.5);g.visible=g.userData.fade>.01;}
+  wings[0].rotation.z=Math.sin(t*2.4+phase)*.18;wings[1].rotation.z=-Math.sin(t*2.4+phase)*.18;
+ });
+ moonGroup.scale.setScalar(Math.max(.001,nightMix*.56));moonGroup.rotation.y=Math.sin(t*.12)*.1;
+ const lampMix=Math.max(nightMix,duskMix*.7,rainMix*.5);glass.color.lerp(tint.setHex(lampMix>.3?0xffd68b:0x418fa5),1-Math.exp(-dt*1.8));glass.emissive.setHex(0xffb642);glass.emissiveIntensity=lampMix*1.2;lampMat.emissiveIntensity=lampMix*2;shipLight.intensity=lampMix*3.5;
+ rainMat.opacity=Math.min(.48,rainMix*.6);rainGeo.setDrawRange(0,Math.floor(150+rainMix*950)*2);rain.visible=rainMix>.005;
+ if(rain.visible){for(let i=0;i<rainCount;i++){const r=rainMeta[i];r.y-=dt*r.speed*(.7+rainMix*.9);if(r.y<.1)r.y=.1+((r.y-.1)%5.1+5.1)%5.1;const k=i*6;rainArray[k]=r.x;rainArray[k+1]=r.y;rainArray[k+2]=r.z;rainArray[k+3]=r.x-.025-rainMix*.12;rainArray[k+4]=r.y+.12+rainMix*.18;rainArray[k+5]=r.z;}rainGeo.attributes.position.needsUpdate=true;}
+ ripples.forEach(r=>{const a=(t*.65+r.userData.phase)%1;r.visible=rain.visible;if(!r.visible)return;r.scale.setScalar(.2+a*1.5);r.material.opacity=rainMix*(1-a)*.4;r.position.y=.025+wave(r.position.x,r.position.z,t);});
+ ambience.setEnvironment({rain:rainMix,night:nightMix,gulls:!env.stormWarning&&env.period!=='night'&&env.weather==='clear'});ambience.tick();
+ controls.dampingFactor=1-Math.exp(-dt*7.6);controls.update();renderer.render(scene,camera);
+ monitor.sample(now,performance.now()-cpuStart,env,buffer);
+ if(qa&&now-diagnosticAt>5000){diagnosticAt=now;const gl=renderer.getContext(),pixel=new Uint8Array(4);lastAlpha=[];for(const [x,y] of [[0,0],[buffer.width-1,0],[0,buffer.height-1],[buffer.width-1,buffer.height-1]]){gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);lastAlpha.push([...pixel]);}document.querySelector('#diagnostics').textContent=JSON.stringify(report(),null,2);}
+}
+document.querySelector('#loading').hidden=true;syncScheduler();
 }

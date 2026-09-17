@@ -1,0 +1,34 @@
+
+> test
+> node --test scene.test.mjs desktop.test.mjs
+
+✔ weather follows adjacent layers with advance storm warning and cooldown (10.9207ms)
+✔ day and weather clocks are independent and time is frame-rate invariant (4.5944ms)
+✔ render budget caps pixels at high DPI and a stopped clock never catches up (0.3894ms)
+✔ desktop DPI and energy presets stay within their pixel budgets (0.187ms)
+✔ wake keeps a fixed GPU buffer and the same trajectory at 20 and 30 FPS (64.0102ms)
+✔ slow visible frames preserve world speed rather than dropping elapsed time (0.1027ms)
+✔ sea swells travel over time while the cut boundary remains sealed (1.8271ms)
+✔ weather audio brings in rain and makes night quieter (0.1099ms)
+✔ a voyage cycles all five stages every 60 seconds without resetting ship time (0.1122ms)
+✔ dolphins remain inside the ocean and dive out of sight at the edge (0.4523ms)
+✔ frame-by-frame weather timing never skips a stage at fractional boundaries (2.5984ms)
+✔ storm waves stay gentle and aurora is delayed and probabilistic (0.637ms)
+✔ night effects remain over the model and do not turn with the camera (12.1585ms)
+✔ first night guarantees a delayed aurora and its layers unfold before the water glows (0.5831ms)
+✔ all four moving curtains stay inside the miniature footprint (2.531ms)
+✔ aurora illumination follows its entrance and fades away on leaving night (2.9376ms)
+✔ gulls vanish in storm and night, then return softly in sunshine (1.1293ms)
+✔ the full looping route keeps the hull and wake inside the ocean boundary (0.6562ms)
+✔ weather selection preserves travel time and rejects unknown modes (0.069ms)
+✔ latest mute wins during loading; hiding cancels thunder and audio resumes cleanly (109.9311ms)
+✔ wave strength ranges from calm water to twice the default without opening the boundary (0.2812ms)
+✔ dolphins cross in ten seconds and the whole pod exits within fourteen (7.0791ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 308.8661

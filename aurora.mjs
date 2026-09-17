@@ -55,9 +55,9 @@ export function createAurora(parent){
       if(row<rows&&column<columns){const a=row*(columns+1)+column;indices.push(a,a+1,a+columns+1,a+1,a+columns+2,a+columns+1);}
     }
     const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3).setUsage(THREE.DynamicDrawUsage));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));geometry.setIndex(indices);
-    const material=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,forceSinglePass:true,blending:THREE.AdditiveBlending,toneMapped:false,
-      uniforms:{time:{value:0},fade:{value:0},phase:{value:layers[layer].phase}},
-      vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    const material=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,forceSinglePass:true,blending:THREE.NormalBlending,toneMapped:false,
+      uniforms:{time:{value:0},fade:{value:0},phase:{value:layers[layer].phase},width:{value:layers[layer].width},height:{value:layers[layer].height},bottom:{value:layers[layer].bottom},depth:{value:layers[layer].z},speed:{value:.072-layer*.006}},
+      vertexShader:`uniform float time,phase,width,height,bottom,depth,speed;varying vec2 vUv;void main(){vUv=uv;float u=uv.x,v=uv.y,t=time*speed;vec3 p=vec3((u-.5)*width+.1*sin(v*2.4+t+phase),bottom+.16*sin(u*7.+t+phase)+v*height*(.92+.08*sin(u*5.-t+phase)),depth+.5*sin(u*6.2831853+t+phase)+.18*sin(u*12.-t*.7+phase)+.17*sin(v*3.+u*8.+t));gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,
       fragmentShader:`uniform float time;uniform float fade;uniform float phase;varying vec2 vUv;${auroraColorGLSL}
       void main(){
         float u=vUv.x,v=vUv.y;
@@ -85,11 +85,6 @@ export function createAurora(parent){
       curtains.forEach((mesh,layer)=>{
         const uniforms=mesh.material.uniforms;uniforms.time.value=time;uniforms.fade.value+=(stage.layers[layer]-uniforms.fade.value)*blend;
         mesh.visible=uniforms.fade.value>.001;if(!mesh.visible)return;
-        const positions=mesh.geometry.attributes.position;
-        for(let row=0;row<=rows;row++)for(let column=0;column<=columns;column++){
-          const p=auroraPoint(layer,column/columns,row/rows,time);positions.setXYZ(row*(columns+1)+column,p.x,p.y,p.z);
-        }
-        positions.needsUpdate=true;
       });
       lights.forEach((light,i)=>{
         light.intensity=waterGlow.value*(i===0?8:i===1?6:4.5)*(.9+.1*Math.sin(time*.13+i));

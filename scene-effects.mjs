@@ -50,8 +50,8 @@ export function createVoyageEffects(scene){
   return {
     waterGlow:aurora.waterGlow,
     lightning(){flashAge=0;bolt.position.x=(Math.random()-.5)*2.5;},
-    update({time,elapsed,weather,events,nightMix,dt,wave}){
-      aurora.update(time,elapsed,weather,events.auroraAt,dt);
+    update({time,elapsed,weather,events,nightMix,dt,wave,auroraWeather=weather,auroraElapsed=elapsed}){
+      aurora.update(time,auroraElapsed,auroraWeather,events.auroraAt,dt);
       starMaterial.uniforms.time.value=time;starMaterial.uniforms.fade.value=nightMix*.48*(1-aurora.waterGlow.value*.35);
       dolphins.forEach((g,i)=>{
         if(weather!=='sunny'){if(g.visible){g.position.y-=dt*.8;if(g.position.y<-.95)g.visible=false;}return;}

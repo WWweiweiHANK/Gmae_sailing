@@ -113,9 +113,10 @@ test('weather selection preserves travel time and rejects unknown modes', () => 
   model.chooseWeather(state, 'invalid');
   assert.equal(state.weather, 'night');
 });
-test('muting or hiding cancels pending thunder and audio can resume cleanly',async(t)=>{
+test('latest mute wins during loading; hiding cancels thunder and audio resumes cleanly',async(t)=>{
   t.mock.timers.enable({apis:['setTimeout']});
-  const sources=[];let context;
+  const sources=[];let context,releaseDecode,beginDecode;
+  const decodeGate=new Promise(resolve=>releaseDecode=resolve),decodeStarted=new Promise(resolve=>beginDecode=resolve);
   const parameter=()=>({value:0,setTargetAtTime(){},setValueAtTime(){},linearRampToValueAtTime(){}});
   const node=()=>({connect(other){return other;},disconnect(){},gain:parameter(),pan:parameter()});
   class FakeAudio{
@@ -123,14 +124,14 @@ test('muting or hiding cancels pending thunder and audio can resume cleanly',asy
     addEventListener(){}createGain(){return node();}createStereoPanner(){return node();}
     createDynamicsCompressor(){return {...node(),threshold:parameter(),knee:parameter(),ratio:parameter(),attack:parameter(),release:parameter()};}
     createBufferSource(){const source={...node(),start(at){this.startedAt=at;},stop(){this.stopped=true;}};sources.push(source);return source;}
-    async decodeAudioData(){return {duration:42};}async resume(){this.state='running';}async suspend(){this.state='suspended';}
+    async decodeAudioData(){beginDecode();await decodeGate;return {duration:42};}async resume(){this.state='running';}async suspend(){this.state='suspended';}
   }
   const oldAudio=globalThis.AudioContext,oldDocument=globalThis.document;
   globalThis.AudioContext=FakeAudio;globalThis.document={hidden:false};
   try{
     const result=await build({entryPoints:['ambient-audio.mjs'],bundle:true,format:'esm',write:false,loader:{'.mp3':'dataurl'}});
     const module=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
-    const audio=module.createAmbientAudio();await audio.setEnabled(true);assert.deepEqual(audio.loaded,['sea','rain','gull','thunder']);
+    const audio=module.createAmbientAudio();const opening=audio.setEnabled(true);await decodeStarted;await audio.setEnabled(false);releaseDecode();await opening;assert.equal(audio.enabled,false,"stale audio load must not unmute");await audio.setEnabled(true);assert.deepEqual(audio.loaded,['sea','rain','gull','thunder']);
     audio.setWeather('storm');audio.thunder();const thunder=sources.at(-1);assert.ok(thunder.startedAt>=1.4);
     await audio.setEnabled(false);assert.equal(thunder.stopped,true);t.mock.timers.tick(1000);assert.equal(context.state,'suspended');
     await audio.setEnabled(true);assert.equal(audio.enabled,true);audio.thunder();const second=sources.at(-1);

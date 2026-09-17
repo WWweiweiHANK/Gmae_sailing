@@ -1,2 +1,4 @@
 node_modules/
 .sites-runtime/
+src-tauri/target/
+qa-preview/

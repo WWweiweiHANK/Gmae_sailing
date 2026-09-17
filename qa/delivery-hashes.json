@@ -1,0 +1,18 @@
+[
+  {
+    "Path": "C:\\Users\\ww\\Documents\\Codex\\2026-09-16\\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\\outputs\\Tiny-Tides.exe",
+    "Hash": "D222E20F7473DFEE5842C93892C3EB32308501F648F51A42F7F12E3222B93862"
+  },
+  {
+    "Path": "C:\\Users\\ww\\Documents\\Codex\\2026-09-16\\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\\work\\ocean-site\\src-tauri\\target\\release\\tiny-tides-pet.exe",
+    "Hash": "D222E20F7473DFEE5842C93892C3EB32308501F648F51A42F7F12E3222B93862"
+  },
+  {
+    "Path": "C:\\Users\\ww\\Documents\\Codex\\2026-09-16\\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\\outputs\\Tiny-Tides-Setup.exe",
+    "Hash": "1C6E73E9E2C5FFDFC61F1B37096936164B070E9B657EEE7ED2B81FBE05B972B1"
+  },
+  {
+    "Path": "C:\\Users\\ww\\Documents\\Codex\\2026-09-16\\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\\work\\ocean-site\\src-tauri\\target\\release\\bundle\\nsis\\Tiny Tides_0.1.0_x64-setup.exe",
+    "Hash": "1C6E73E9E2C5FFDFC61F1B37096936164B070E9B657EEE7ED2B81FBE05B972B1"
+  }
+]

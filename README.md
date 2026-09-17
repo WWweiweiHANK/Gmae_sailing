@@ -2,11 +2,11 @@
 
 在原 Three.js 0.180.0 项目上增量接入 Tauri 2。轮船、海洋截面、海豚、多边形海鸥和四层极光沿用原场景；网页与桌宠使用同一前端和一个渲染器。
 
-**交付状态：离线网页可运行；Tauri 工程已实现，但当前机器缺少 MSVC 的 link.exe，尚未生成或验证 Windows 可执行文件。** 实测与未测项见 [TEST_RESULTS.md](TEST_RESULTS.md)，原生构建错误见 [qa/native-build.log](qa/native-build.log)。
+**Windows EXE 和 NSIS 安装包已经成功构建。** 双击交付目录中的 Tiny-Tides.exe 可直接启动；需要安装时使用 Tiny-Tides-Setup.exe。实测与未测项见 [TEST_RESULTS.md](TEST_RESULTS.md)，构建输出见 [qa/native-build.log](qa/native-build.log)。
 
 ## 网页预览
 
-直接打开 [dist/index.html](dist/index.html)，无需网络、Node 或 CDN。网页默认显示编辑工具；“锁定展示”隐藏工具，“编辑预览”可恢复。鼠标穿透与托盘只在 Windows 应用中提供。
+独立网页为 [dist/index.html](dist/index.html)，资源均已内嵌。用户在 Codex 的 file:// 预览中报告停留在加载提示，受浏览器工具访问限制，尚未定位该入口的问题；建议用以下本地预览入口。桌宠请直接启动 EXE。网页默认显示编辑工具；“锁定展示”隐藏工具，“编辑预览”可恢复。鼠标穿透与托盘只在 Windows 应用中提供。
 
 开发预览：
 
@@ -22,7 +22,7 @@ npm run preview
 
 依赖：Windows 10/11、Node.js LTS、Rust MSVC stable、Visual Studio C++ 桌面开发工作负载（MSVC x64/x86 和 Windows SDK）、WebView2。仅安装 Visual Studio 编辑器并不足够。[Tauri 官方前置要求](https://v2.tauri.app/start/prerequisites/)。
 
-本机已安装 Rust stable 到 C:/Users/ww/.cargo/bin，未修改系统 PATH；运行前可将该目录加入当前终端 PATH。自动安装 C++ 工具被审批策略阻止，需要在 Visual Studio Installer 中安装上述工作负载后继续。
+本机已安装 Rust stable 到 C:/Users/ww/.cargo/bin，未修改系统 PATH；运行前可将该目录加入当前终端 PATH。用户已通过 Visual Studio Installer 安装 C++ 工作负载与 Windows SDK，此前 link.exe 缺失的构建阻塞已解除。
 
 ```powershell
 npm ci
@@ -33,9 +33,9 @@ npm run desktop:dev
 npm run desktop:build
 ```
 
-成功后应用位于 src-tauri/target/release/tiny-tides-pet.exe，NSIS 安装包位于 src-tauri/target/release/bundle/nsis/。这是预期输出路径，当前交付不含这些文件。
+应用构建产物位于 src-tauri/target/release/tiny-tides-pet.exe，NSIS 安装包位于 src-tauri/target/release/bundle/nsis/。交付目录同时提供改名后的 EXE 与安装包。
 
-应用脚本与音频嵌入 HTML；模型和纹理由本地代码创建，没有在线资源请求。安装包配置包含离线 WebView2 安装器，因此首次**构建**仍需下载构建依赖及 WebView2 安装器；最终安装和运行不依赖 CDN。当前构建及安装路径尚待实机验证。应用未配置签名证书。
+应用脚本与音频嵌入 HTML；模型和纹理由本地代码创建，没有在线资源请求。安装包包含离线 WebView2 安装器，因此首次**构建**仍需下载构建依赖及 WebView2 安装器；最终安装和运行不依赖 CDN。直接运行 EXE 需要机器已安装 WebView2，本机已具备。NSIS 安装与卸载流程尚未实测。应用未配置签名证书。
 
 ## 桌宠操作
 

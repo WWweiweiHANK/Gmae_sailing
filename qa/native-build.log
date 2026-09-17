@@ -9,48 +9,11 @@
 > node build.mjs
 
 Built standalone dist/index.html — all JavaScript bundled, no CDN required.
-   Compiling proc-macro2 v1.0.107
-   Compiling quote v1.0.47
-   Compiling serde_core v1.0.229
-   Compiling icu_properties_data v2.3.0
-   Compiling icu_normalizer_data v2.3.0
-   Compiling zmij v1.0.23
-   Compiling thiserror v2.0.20
-   Compiling parking_lot_core v0.9.12
-   Compiling serde v1.0.229
-   Compiling typeid v1.0.3
-   Compiling phf_shared v0.13.1
-   Compiling time-core v0.1.9
-   Compiling stable_deref_trait v1.2.1
-   Compiling writeable v0.6.4
-   Compiling strsim v0.11.1
-   Compiling litemap v0.8.3
-   Compiling windows_x86_64_msvc v0.52.6
-   Compiling erased-serde v0.4.10
-error: linker `link.exe` not found
-  |
-  = note: program not found
-
-note: the msvc targets depend on the msvc linker but `link.exe` was not found
-
-note: please ensure that Visual Studio 2017 or later, or Build Tools for Visual Studio were installed with the Visual C++ option
-
-note: VS Code is a different product, and is not sufficient
-
-error: could not compile `serde_core` (build script) due to 1 previous error
-warning: build failed, waiting for other jobs to finish...
-error: could not compile `quote` (build script) due to 1 previous error
-error: could not compile `proc-macro2` (build script) due to 1 previous error
-error: could not compile `icu_properties_data` (build script) due to 1 previous error
-error: could not compile `serde_core` (build script) due to 1 previous error
-error: could not compile `icu_normalizer_data` (build script) due to 1 previous error
-error: could not compile `zmij` (build script) due to 1 previous error
-error: could not compile `thiserror` (build script) due to 1 previous error
-error: could not compile `parking_lot_core` (build script) due to 1 previous error
-error: could not compile `serde` (build script) due to 1 previous error
-error: could not compile `typeid` (build script) due to 1 previous error
-error: could not compile `windows_x86_64_msvc` (build script) due to 1 previous error
-error: could not compile `erased-serde` (build script) due to 1 previous error
-error: could not compile `serde` (build script) due to 1 previous error
-failed to build app: failed to build app
-       Error failed to build app: failed to build app
+   Compiling tiny-tides-pet v0.1.0 (C:\Users\ww\Documents\Codex\2026-09-16\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\work\ocean-site\src-tauri)
+    Finished `release` profile [optimized] target(s) in 1m 14s
+       Built application at: C:\Users\ww\Documents\Codex\2026-09-16\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\work\ocean-site\src-tauri\target\release\tiny-tides-pet.exe
+        Info Patching C:\Users\ww\Documents\Codex\2026-09-16\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\work\ocean-site\src-tauri\target\release\tiny-tides-pet.exe with bundle type information: nsis
+        Info Target: x64
+     Running makensis to produce C:\Users\ww\Documents\Codex\2026-09-16\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\work\ocean-site\src-tauri\target\release\bundle\nsis\Tiny Tides_0.1.0_x64-setup.exe
+    Finished 1 bundle at:
+        C:\Users\ww\Documents\Codex\2026-09-16\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\work\ocean-site\src-tauri\target\release\bundle\nsis\Tiny Tides_0.1.0_x64-setup.exe

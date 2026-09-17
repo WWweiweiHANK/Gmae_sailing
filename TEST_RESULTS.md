@@ -2,9 +2,20 @@
 
 ## 结论
 
-网页前端可运行，正式与 QA HTML 构建通过，22 项自动检查通过。Windows 应用构建失败：本机没有 MSVC link.exe。**没有生成可运行的 Windows exe/安装包，也没有完成原生桌宠验收。**
+Windows EXE 与 NSIS 安装包构建成功，已启动交付目录中的 Tiny-Tides.exe，并收到原生前端首个 5 秒绘制诊断，证明场景已经完成初始化并绘制。22 项前端自动检查和 3 项 Rust 位置恢复测试通过。**这次完成构建及启动冒烟验证，不等于下方全部原生桌宠验收已完成。**
 
-已安装 Rust 1.98.1 / Cargo 1.98.1。Visual Studio Community 已存在，但缺少 C++ 工具和 Windows SDK；WebView2 153.0.4234.32 存在。自动审批拒绝了 C++ Build Tools 静默安装，返回“被策略阻止”；没有绕过此限制。构建完整输出见 [qa/native-build.log](qa/native-build.log)。
+Rust 1.98.1 / Cargo 1.98.1、Visual Studio Community 2026 C++ 工具、Windows SDK 10.0.26100.0、WebView2 153.0.4234.32。此前自动安装 C++ 工具被策略阻止、构建缺少 link.exe；用户自行安装工作负载后，编译与链接成功。构建完整输出见 [qa/native-build.log](qa/native-build.log)。
+
+## Windows EXE 启动实测
+
+- 2026-09-17 21:22:02（北京时间）启动 outputs/Tiny-Tides.exe，进程持续运行且 Responding=true。
+- 21:22:08 的应用内部诊断：native=true、visible=true、editing=false、minimized=false、paused=false；1 个渲染器，560×540 绘制缓冲，135 帧、98 次绘制调用、13057 个三角形。
+- 启动首个采样包含初始化开销：26.91 FPS，CPU 提交均值 5.48 ms、P95 1.80 ms，82 个几何、1 个纹理、10 个程序。这不是预热后的稳态性能，不能写成已经稳定达到 30 FPS。
+- 原始诊断见 [qa/native-startup.json](qa/native-startup.json)，进程快照见 [qa/native-process.json](qa/native-process.json)。主进程工作集不包含 WebView2 子进程或 GPU 内存。
+- 安装包制作完成后，重新复制并启动最终 EXE；交付文件与构建产物的 SHA256 一致。21:24 的最终启动诊断见 [qa/native-final-startup.json](qa/native-final-startup.json)，首个采样约 30.00 FPS、CPU 均值 1.39 ms，仍仅代表短时晴天启动样本。
+- Rust 位置恢复测试独立编译运行，3 项通过，见 [qa/native-placement-tests.log](qa/native-placement-tests.log)：显示器丢失、负坐标屏幕、窗口超出工作区。这是逻辑测试，不是真实多屏热插拔测试。
+- 当前工具不能操作或截图原生桌面窗口，因此没有把原生透明外观、托盘点击、穿透与多屏体验写成实测通过。
+- 用户报告的 file:// HTML 一直显示加载提示问题尚未定位；该入口的浏览器诊断读取被工具策略拒绝。EXE 自身的 WebView2 入口已实测完成绘制，两者应区分。
 
 ## 自动检查
 
@@ -42,7 +53,7 @@
 
 ## Windows 尚待验收
 
-安装 C++ 桌面开发工作负载后依次执行 cargo test、desktop:dev 和 desktop:build，再检查：
+EXE 已构建并完成启动检查，以下交互、视觉与安装验收仍需实际操作：
 
 1. 真实浅色/深色壁纸上的透明边缘、无窗口阴影、极光和海鸥安全区。
 2. 锁定默认不抢焦点、鼠标穿透；托盘编辑可恢复交互；专用移动按钮与 OrbitControls 分离；单实例恢复。

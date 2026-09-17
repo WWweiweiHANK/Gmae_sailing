@@ -1,0 +1,97 @@
+{
+  "alphaCorners": null,
+  "camera": {
+    "position": [
+      14.310106899144747,
+      17.37561224410198,
+      19.813994168046573
+    ],
+    "target": [
+      0,
+      2.35,
+      0
+    ]
+  },
+  "environment": {
+    "auroraAllowed": false,
+    "auroraAt": null,
+    "fromPeriod": "day",
+    "nextPeriodIn": 423.1945919391461,
+    "nextWeather": "overcast",
+    "nextWeatherIn": 250.0464622740853,
+    "night": 0,
+    "period": "day",
+    "periodBlend": 1,
+    "rain": 0,
+    "shade": 0,
+    "stormWarning": false,
+    "transitionDuration": 18,
+    "weather": "clear",
+    "weatherAge": 105.0334,
+    "worldTime": 5.033399999999997
+  },
+  "history": [
+    {
+      "aurora": false,
+      "buffer": [
+        560,
+        540
+      ],
+      "calls": 98,
+      "cpuMeanMs": 1.3899999992052714,
+      "cpuP95Ms": 1.5,
+      "fps": 29.99880004799808,
+      "geometries": 82,
+      "jsHeapBytes": 12682327,
+      "period": "day",
+      "programs": 10,
+      "textures": 1,
+      "timestamp": "2026-09-17T13:24:32.921Z",
+      "totalFrames": 150,
+      "triangles": 13057,
+      "weather": "clear"
+    }
+  ],
+  "last": {
+    "aurora": false,
+    "buffer": [
+      560,
+      540
+    ],
+    "calls": 98,
+    "cpuMeanMs": 1.3899999992052714,
+    "cpuP95Ms": 1.5,
+    "fps": 29.99880004799808,
+    "geometries": 82,
+    "jsHeapBytes": 12682327,
+    "period": "day",
+    "programs": 10,
+    "textures": 1,
+    "timestamp": "2026-09-17T13:24:32.921Z",
+    "totalFrames": 150,
+    "triangles": 13057,
+    "weather": "clear"
+  },
+  "native": true,
+  "note": "fps is observed rendered frames; CPU excludes asynchronous GPU completion; JS heap excludes native/GPU memory.",
+  "paused": false,
+  "rendererCount": 1,
+  "wakeCapacity": 200,
+  "windowState": {
+    "editing": false,
+    "minimized": false,
+    "paused": false,
+    "settings": {
+      "camera": null,
+      "fps": 30,
+      "position": [
+        1976,
+        828
+      ],
+      "sound": false,
+      "topmost": true,
+      "wave": 1
+    },
+    "visible": true
+  }
+}

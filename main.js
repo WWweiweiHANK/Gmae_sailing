@@ -142,7 +142,7 @@ canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();contex
 canvas.addEventListener('webglcontextrestored',()=>{contextLost=false;document.querySelector('#error').hidden=true;syncScheduler();});
 let latestEnvironment=environment.snapshot();
 function report(){return {...monitor.report(),environment:latestEnvironment,paused:!active(),camera:cameraRecord(),rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha};}
-let lastAlpha=null,diagnosticAt=0;
+let lastAlpha=null,diagnosticAt=0,startupRecorded=false;
 if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'get_ocean_state',title:'查看桌宠状态与实测性能',description:'只读场景状态、帧率、CPU提交时间及资源数量。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:report});}
 if(qa){document.body.dataset.qa='true';document.querySelector('#qa-panel').hidden=false;document.querySelector('#wallpaper').addEventListener('change',e=>{document.body.dataset.wallpaper=e.target.value;});}
 document.querySelector('#export').addEventListener('click',()=>{const data=report();void bridge.diagnostics(data);const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='tiny-tides-diagnostics.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
@@ -181,6 +181,7 @@ function frame(now){
  ambience.setEnvironment({rain:rainMix,night:nightMix,gulls:!env.stormWarning&&env.period!=='night'&&env.weather==='clear'});ambience.tick();
  controls.dampingFactor=1-Math.exp(-dt*7.6);controls.update();renderer.render(scene,camera);
  monitor.sample(now,performance.now()-cpuStart,env,buffer);
+ if(bridge.native&&!startupRecorded&&monitor.report().last){startupRecorded=true;void bridge.diagnostics({...report(),native:true,windowState:nativeState}).catch(console.warn);}
  if(qa&&now-diagnosticAt>5000){diagnosticAt=now;const gl=renderer.getContext(),pixel=new Uint8Array(4);lastAlpha=[];for(const [x,y] of [[0,0],[buffer.width-1,0],[0,buffer.height-1],[buffer.width-1,buffer.height-1]]){gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);lastAlpha.push([...pixel]);}document.querySelector('#diagnostics').textContent=JSON.stringify(report(),null,2);}
 }
 document.querySelector('#loading').hidden=true;syncScheduler();

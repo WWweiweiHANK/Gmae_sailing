@@ -1,0 +1,97 @@
+{
+  "alphaCorners": null,
+  "camera": {
+    "position": [
+      14.310106899144747,
+      17.37561224410198,
+      19.813994168046573
+    ],
+    "target": [
+      0,
+      2.35,
+      0
+    ]
+  },
+  "environment": {
+    "auroraAllowed": false,
+    "auroraAt": null,
+    "fromPeriod": "day",
+    "nextPeriodIn": 399.3591720008793,
+    "nextWeather": "overcast",
+    "nextWeatherIn": 253.96023060625507,
+    "night": 0,
+    "period": "day",
+    "periodBlend": 1,
+    "rain": 0,
+    "shade": 0,
+    "stormWarning": false,
+    "transitionDuration": 18,
+    "weather": "clear",
+    "weatherAge": 105.0502,
+    "worldTime": 5.050199999999998
+  },
+  "history": [
+    {
+      "aurora": false,
+      "buffer": [
+        560,
+        540
+      ],
+      "calls": 98,
+      "cpuMeanMs": 5.475555555025736,
+      "cpuP95Ms": 1.800000011920929,
+      "fps": 26.90958379843725,
+      "geometries": 82,
+      "jsHeapBytes": 13791070,
+      "period": "day",
+      "programs": 10,
+      "textures": 1,
+      "timestamp": "2026-09-17T13:22:08.552Z",
+      "totalFrames": 135,
+      "triangles": 13057,
+      "weather": "clear"
+    }
+  ],
+  "last": {
+    "aurora": false,
+    "buffer": [
+      560,
+      540
+    ],
+    "calls": 98,
+    "cpuMeanMs": 5.475555555025736,
+    "cpuP95Ms": 1.800000011920929,
+    "fps": 26.90958379843725,
+    "geometries": 82,
+    "jsHeapBytes": 13791070,
+    "period": "day",
+    "programs": 10,
+    "textures": 1,
+    "timestamp": "2026-09-17T13:22:08.552Z",
+    "totalFrames": 135,
+    "triangles": 13057,
+    "weather": "clear"
+  },
+  "native": true,
+  "note": "fps is observed rendered frames; CPU excludes asynchronous GPU completion; JS heap excludes native/GPU memory.",
+  "paused": false,
+  "rendererCount": 1,
+  "wakeCapacity": 200,
+  "windowState": {
+    "editing": false,
+    "minimized": false,
+    "paused": false,
+    "settings": {
+      "camera": null,
+      "fps": 30,
+      "position": [
+        1976,
+        828
+      ],
+      "sound": false,
+      "topmost": true,
+      "wave": 1
+    },
+    "visible": true
+  }
+}

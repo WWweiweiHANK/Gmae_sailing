@@ -166,6 +166,13 @@ if(typeof __DEV__!=='undefined'&&__DEV__){window.debugUnlockBadge=id=>badges.unl
 const debugPacing=()=>({...ENCOUNTER_PACING,windows:{ambient:[10,20],special:[20,40],wonder:[40,60]},firstAmbient:[10,15],quietAfterMajor:[5,8],wonderGap:45,cooldownScale:.01});
 encounterDirector=createEncounterDirector({store,bus:worldEventBus,unlockBadge:badges.unlockBadge,shipName:()=>customization.data.name,config:fastEncounters?debugPacing():ENCOUNTER_PACING});
 function encounterEnvironment(env){return {...env,aurora:effects.waterGlow.value,auroraDueIn:env.auroraAllowed?env.auroraAt-env.worldTime:Infinity};}
+if(typeof __GM__!=='undefined'&&__GM__){
+ const controls=document.querySelector('#gm-controls'),select=document.querySelector('#gm-event'),button=document.querySelector('#gm-trigger');controls.hidden=false;
+ for(const encounter of encounterCatalog)select.add(new Option(encounter.name,encounter.id));
+ button.addEventListener('click',()=>{const encounter=select.value==='random'?encounterCatalog[Math.floor(Math.random()*encounterCatalog.length)]:encounterCatalog.find(item=>item.id===select.value);if(!encounter)return;
+  environment.stage({period:encounter.conditions.time[0],weather:encounter.conditions.weather[0]});const result=encounterDirector.previewEncounter(encounter.id,encounterEnvironment(environment.snapshot()));document.querySelector('#status').textContent=result==='started'?`GM：${encounter.name}已出现`:`GM：${encounter.name}未能出现`;
+ });
+}
 if(typeof __DEV__!=='undefined'&&__DEV__){
  window.triggerEncounter=id=>encounterDirector.startEncounter(id,encounterEnvironment(environment.snapshot()),{ignoreTiming:true});
  let accelerated=fastEncounters;Object.defineProperty(window,'DEBUG_ENCOUNTER_SPEED',{get:()=>accelerated,set:value=>{accelerated=value===true;encounterDirector.setPacing(accelerated?debugPacing():ENCOUNTER_PACING);}});

@@ -11,8 +11,8 @@ export function createEncounterDirector({store,bus,unlockBadge,shipName,random=M
  if(config.cooldownScale<1)limitWaits();
  const persist=()=>store.save(data);
  function condition(e,env){return !!env&&e.conditions.time.includes(env.period)&&e.conditions.weather.includes(env.weather)&&!env.stormWarning&&(env.rain??0)<.7&&(env.period!=='night'||(env.night??1)>.8)&&(e.tier==='ambient'||(!(env.aurora>.05)&&(env.auroraDueIn??Infinity)>e.maxDuration+config.exitSeconds));}
- function reason(e,env,ignoreTiming=false){
-  if(!e)return 'invalid';if(!condition(e,env))return 'conditions';
+ function reason(e,env,ignoreTiming=false,preview=false){
+  if(!e)return 'invalid';if(preview)return null;if(!condition(e,env))return 'conditions';
   if(e.conditions.prerequisite&&!history[e.conditions.prerequisite]?.completedCount)return 'prerequisite';
   const slot=e.tier==='ambient'?'ambient':'major';if(slots.has(slot))return 'slot';
   // A single shared dolphin pod cannot simultaneously host both visitors.
@@ -21,10 +21,11 @@ export function createEncounterDirector({store,bus,unlockBadge,shipName,random=M
   if(state.time<state.quietUntil)return 'quiet';if(e.tier==='wonder'&&state.time<state.wonderUntil)return 'cooldown';
   if(state.time<(state.cooldowns[e.id]??0))return 'cooldown';if(state.lastId===e.id)return 'repeat';if(state.lastCategory===e.category&&state.categoryStreak>=2)return 'category';return null;
  }
- function startEncounter(id,env=latestEnv,{ignoreTiming=false}={}){
-  const e=encounterCatalog.find(e=>e.id===id),blocked=reason(e,env,ignoreTiming);if(blocked)return blocked;
+ function startEncounter(id,env=latestEnv,{ignoreTiming=false,preview=false}={}){
+  const e=encounterCatalog.find(e=>e.id===id),blocked=reason(e,env,ignoreTiming,preview);if(blocked)return blocked;
   const slot=e.tier==='ambient'?'ambient':'major',duration=range([e.minDuration,e.maxDuration]);
-  slots.set(slot,{id,slot,elapsed:0,duration,phase:'enter',seen:false,firstTime:false,seenCount:0,badgeUnlocked:false,souvenirUnlocked:false,startTime:now().toISOString(),weather:env.weather,timeOfDay:env.period,shipName:shipName(),seed:random(),persistentVisitorId:e.persistentVisitorId});
+  slots.set(slot,{id,slot,elapsed:0,duration,phase:'enter',seen:false,firstTime:false,seenCount:0,badgeUnlocked:false,souvenirUnlocked:false,startTime:now().toISOString(),weather:env.weather,timeOfDay:env.period,shipName:shipName(),seed:random(),persistentVisitorId:e.persistentVisitorId,preview});
+  if(preview)return 'started';
   state.lastId=id;state.categoryStreak=state.lastCategory===e.category?state.categoryStreak+1:1;state.lastCategory=e.category;state.cooldowns[id]=state.time+e.cooldown*(config.cooldownScale??1);
   state.next[e.tier]=state.time+range(config.windows[e.tier]);if(e.tier==='wonder')state.wonderUntil=state.time+config.wonderGap;
   persist();return 'started';
@@ -32,6 +33,7 @@ export function createEncounterDirector({store,bus,unlockBadge,shipName,random=M
  function unlockSouvenir(id){if(!souvenirIds.includes(id)||data.ownedSouvenirs.includes(id))return false;data.ownedSouvenirs.push(id);persist();return true;}
  function confirmVisible(id){
   const a=[...slots.values()].find(a=>a.id===id);if(!a||a.seen||a.interrupted)return false;
+  if(a.preview){a.seen=true;return true;}
   const e=encounterCatalog.find(e=>e.id===id),old=history[id],at=now().toISOString();a.seen=true;a.firstTime=!old;a.seenCount=(old?.seenCount??0)+1;
   history[id]={firstSeenAt:old?.firstSeenAt??at,lastSeenAt:at,seenCount:a.seenCount,completedCount:old?.completedCount??0,persistentVisitorId:e.persistentVisitorId};state.lastSeenTime=state.time;persist();
   if(e.badgeReward)a.badgeUnlocked=unlockBadge(e.badgeReward,{sourceEventId:'encounter:'+id+':'+a.startTime})==='unlocked';
@@ -41,6 +43,7 @@ export function createEncounterDirector({store,bus,unlockBadge,shipName,random=M
  }
  function endEncounter(id,interrupted=false){
   const a=[...slots.values()].find(a=>a.id===id);if(!a)return false;slots.delete(a.slot);
+  if(a.preview)return true;
   if(a.slot==='major')state.quietUntil=state.time+range(config.quietAfterMajor);
   if(a.seen){if(!interrupted)history[id].completedCount++;
    lastCompleted={encounterId:id,startTime:a.startTime,endTime:now().toISOString(),weather:a.weather,timeOfDay:a.timeOfDay,shipName:a.shipName,firstTime:a.firstTime,seenCount:a.seenCount,souvenirUnlocked:a.souvenirUnlocked,badgeUnlocked:a.badgeUnlocked,persistentVisitorId:a.persistentVisitorId,interrupted,logTemplate:encounterCatalog.find(e=>e.id===id).logTemplate};
@@ -60,11 +63,12 @@ export function createEncounterDirector({store,bus,unlockBadge,shipName,random=M
   state.bags[tier]=bag.filter(id=>id!==(selected?.id??null));if(selected)startEncounter(selected.id,env);
  }
  return {startEncounter,endEncounter,confirmVisible,unlockSouvenir,save:persist,
+  previewEncounter(id,env=latestEnv){const e=encounterCatalog.find(e=>e.id===id);if(!e)return 'invalid';for(const a of [...slots.values()])endEncounter(a.id,true);return startEncounter(id,env,{preview:true});},
   setPacing(next){config=next;for(const tier of ['ambient','special','wonder'])state.next[tier]=state.time+range(config.windows[tier]);limitWaits();persist();},
   active:()=>[...slots.values()].map(a=>({...a})),snapshot:()=>({...structuredClone(data),activeEncounterSlots:[...slots.values()].map(a=>({...a})),lastCompleted}),
   advance(dt,env,running=true){latestEnv=env;if(!running||!Number.isFinite(dt)||dt<=0||dt>30)return;state.time+=dt;sinceSave+=dt;
    for(const a of [...slots.values()]){a.elapsed+=dt;const e=encounterCatalog.find(e=>e.id===a.id);
-    if(!a.interrupted&&!condition(e,env)){a.interrupted=true;a.exitAt=a.elapsed;}
+    if(!a.preview&&!a.interrupted&&!condition(e,env)){a.interrupted=true;a.exitAt=a.elapsed;}
     a.phase=a.interrupted||a.elapsed>a.duration-4?'exit':a.elapsed<4?'enter':'play';
     if(a.interrupted?a.elapsed-a.exitAt>=config.exitSeconds:a.elapsed>=a.duration)endEncounter(a.id,!!a.interrupted);
    }

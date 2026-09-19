@@ -196,3 +196,26 @@ triggerEncounter('bioluminescent_sea');
 存档版本 4 新增 encounterHistory、ownedSouvenirs、encounterDirectorState，保留原进度、配色与徽章。历史包括 firstSeenAt、lastSeenAt、seenCount、completedCount；保存世界时钟、牌组与冷却，不保存进行中的演出。重载回到安静海面，历史、前置和归属继续保留。统一入口 `unlockSouvenir(id)` 校验配置、去重写入。自然完成发出 `encounter_completed`，包含 encounterId、startTime、endTime、weather、timeOfDay、shipName、firstTime、seenCount、souvenirUnlocked、badgeUnlocked，以及 visitor ID / logTemplate；天气中断使用独立的 encounter_interrupted，不冒充完整经历。
 
 本阶段回退基点 `1d538aa`。如需回退，先备份升级前版本 3 存档；旧程序不支持版本 4，不能用版本 4 数据覆盖旧存档。本次未替换历史 HTML、旧 EXE 或安装包。
+
+## GM 见闻模式
+
+GM 是构建期开关，默认正式构建关闭。开启后，在网页点“编辑预览”，或在桌面托盘进入编辑模式，工具栏会出现 GM 事件选择器；可选择任意一项见闻，或选择“随机见闻”，再点“立即出现”。GM 会立即切换到该见闻适合的时段和天气，结束当前演出并播放所选事件，不受自然冷却、事件链前置或天气条件限制。
+
+GM 演出只用于观看和测试：不会写入首次发现、重复次数、徽章、纪念物或完成日志，也不扣航行值。退出和重开后仍使用原来的正式进度。
+
+```powershell
+# 开启 GM 的网页预览
+npm run preview:gm
+
+# 开启 GM 的桌面开发窗口
+$env:TINY_TIDES_GM='1'
+npm run desktop:dev
+Remove-Item Env:TINY_TIDES_GM
+
+# 开启 GM 的正式 EXE 构建
+$env:TINY_TIDES_GM='1'
+npm run desktop:build
+Remove-Item Env:TINY_TIDES_GM
+```
+
+需要关闭 GM 时，直接使用原有命令重新构建：`npm run preview`、`npm run desktop:dev` 或 `npm run desktop:build`。关闭构建会从最终 HTML 中删除 GM 面板和触发逻辑，不依赖运行时隐藏按钮。

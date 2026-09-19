@@ -22,7 +22,11 @@ export function createEnvironment(random=Math.random,initial={}){
   transitionDuration:weatherTransition,auroraAt,auroraAllowed:eligible,
   nextPeriodIn:periodDue-time,nextWeatherIn:weatherDue-time
  };}
- return {snapshot,advance(dt){
+ return {snapshot,stage(next){
+  if(!Object.hasOwn(night,next?.period)||!Object.hasOwn(rain,next?.weather))return false;
+  period=fromPeriod=next.period;periodAt=time-100;periodTransition=18;periodDue=time+range(C.periodDuration[period]);
+  weather=next.weather;weatherAt=time-100;weatherTransition=18;oldRain=rain[weather];oldShade=shade[weather];weatherDue=time+range(C.weatherDuration[weather]);nextWeather=choose();auroraAt=Infinity;eligible=false;return true;
+ },advance(dt){
   if(!Number.isFinite(dt)||dt<=0)return;
   const end=time+dt;
   while(Math.min(periodDue,weatherDue)<=end+1e-8){

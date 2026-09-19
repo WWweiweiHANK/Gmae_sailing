@@ -1,5 +1,11 @@
 # 实际验证记录 · 2026-09-17
 
+## 2026-09-19 GM 见闻模式
+
+- 新增 2 项行为检查：GM 可替换正在运行的日常事件并在白天强制启动夜间流星；可把环境即时布置为夜晚晴天且不推进世界时间；无效事件/环境被拒绝。GM 事件实际可见后再结束，encounterHistory、ownedSouvenirs 和 encounter_completed 均保持不变。
+- 普通网页和桌面前端构建检查均不包含 `id="gm-controls"` 或 GM 状态文本；`npm run build:gm` 与 `npm run desktop:frontend:gm` 均包含事件选择器和触发按钮。由于本轮 Codex 浏览器连接不可用，没有把静态构建检查记作浏览器点击验收。
+- 本次只生成网页与桌面前端输入，没有重编 EXE；原生托盘编辑模式中的 GM 控件仍需下一次 Windows EXE 实机验收。
+
 ## 2026-09-19 自动见闻第五阶段
 
 - 最终 `npm test` 62 项全通过；开发预览、QA、桌面前端三种构建和 `git diff --check` 通过。正式桌面产物检查不含 triggerEncounter、DEBUG_ENCOUNTER_SPEED、debug_encounter、encounterDebug 及上一阶段四个调试入口/参数。

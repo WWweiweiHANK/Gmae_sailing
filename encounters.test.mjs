@@ -66,3 +66,12 @@ test('accelerating development also shortens previously scheduled cooldowns and 
  d.setPacing({...ENCOUNTER_PACING,windows:{ambient:[10,20],special:[20,40],wonder:[40,60]},quietAfterMajor:[5,8],wonderGap:45,cooldownScale:.01});const s=d.snapshot().encounterDirectorState;
  assert.ok(s.wonderUntil-s.time<=45);assert.ok(s.quietUntil-s.time<=8);assert.ok(s.cooldowns.giant_whale_surface-s.time<=72);
 });
+
+test('GM preview replaces active events, ignores conditions and never changes progression',()=>{
+ const {director:d,store,events}=setup();assert.equal(typeof d.previewEncounter,'function');
+ assert.equal(d.startEncounter('underwater_fish_school',day),'started');
+ assert.equal(d.previewEncounter('meteor_shower',day),'started');assert.deepEqual(d.active().map(a=>a.id),['meteor_shower']);
+ d.confirmVisible('meteor_shower');d.endEncounter('meteor_shower');
+ assert.deepEqual(store.read().encounterHistory,{});assert.deepEqual(store.read().ownedSouvenirs,[]);assert.equal(events.some(e=>e.type==='encounter_completed'),false);
+ assert.equal(d.previewEncounter('not-real',day),'invalid');
+});

@@ -86,3 +86,9 @@ test('showcase camera follows a sailing ship, orbits the real world and restores
  view.restore();assert.ok(camera.position.equals(original));assert.ok(controls.target.equals(target));assert.ok(camera.quaternion.angleTo(rotation)<1e-7);assert.equal(controls.enabled,true);
  controls.update();assert.ok(camera.position.distanceTo(original)<1e-9);
 });
+
+test('GM environment can immediately stage every encounter without changing elapsed world time',()=>{
+ const world=env.createEnvironment(seeded(9)),before=world.snapshot().worldTime;assert.equal(typeof world.stage,'function');
+ assert.equal(world.stage({period:'night',weather:'clear'}),true);let s=world.snapshot();assert.equal(s.period,'night');assert.equal(s.night,1);assert.equal(s.weather,'clear');assert.equal(s.worldTime,before);assert.equal(s.auroraAllowed,false);
+ assert.equal(world.stage({period:'invalid',weather:'clear'}),false);s=world.snapshot();assert.equal(s.period,'night');
+});

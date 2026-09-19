@@ -16,6 +16,8 @@ import {createShipShowcase} from './ship-showcase.mjs';
 import {createSailing,sailingConfig} from './sailing.mjs';
 import {createGameSave,GAME_SAVE_KEY} from './game-save.mjs';
 import {createBoatSkins} from './boat-skins.mjs';
+import {createAccessoryEquipment} from './boat-accessories.mjs';
+import accessorySheet from './assets/boat-accessories.png';
 import {createBoatModel} from './boat-model.mjs';
 import {createBadges,createWorldEventBus,createVisualEventTracker} from './badges.mjs';
 import {createEncounterDirector} from './encounter-director.mjs';
@@ -151,6 +153,8 @@ bridge=await connectDesktop(showNative,()=>{if(showcase?.busy)showcase.close();e
 const customization=createShipCustomization(ship,{hull:hullMat,roof:roofMat,stripe:stripeMat},message=>{document.querySelector('#ship-notice').textContent=message;},store.read().shipCustomization,
  shipCustomization=>store.save({shipCustomization,sailingData:sailing.snapshot()}),boat);
 const skins=createBoatSkins({store,customization});
+const accessories=createAccessoryEquipment({store,customization});
+document.documentElement.style.setProperty('--accessory-sheet',`url("${accessorySheet}")`);
 badges=createBadges({store,customization,bus:worldEventBus,total:()=>sailing.snapshot().totalSailingSeconds,config:typeof __DEV__!=='undefined'&&__DEV__&&fastSailing?{first_voyage:30,old_sailor:120,starry_night:10}:{},onChange:()=>showcase?.refreshBadges()});
 if(typeof __DEV__!=='undefined'&&__DEV__){window.debugUnlockBadge=id=>badges.unlockBadge(id,{sourceEventId:'debug'});window.emitWorldEvent=worldEventBus.emitWorldEvent;}
 const debugPacing=()=>({...ENCOUNTER_PACING,windows:{ambient:[10,20],special:[20,40],wonder:[40,60]},firstAmbient:[10,15],quietAfterMajor:[5,8],wonderGap:45,cooldownScale:.01});
@@ -167,7 +171,7 @@ if(typeof __DEV__!=='undefined'&&__DEV__){
  window.triggerEncounter=id=>encounterDirector.startEncounter(id,encounterEnvironment(environment.snapshot()),{ignoreTiming:true});
  let accelerated=fastEncounters;Object.defineProperty(window,'DEBUG_ENCOUNTER_SPEED',{get:()=>accelerated,set:value=>{accelerated=value===true;encounterDirector.setPacing(accelerated?debugPacing():ENCOUNTER_PACING);}});
 }
-showcase=createShipShowcase({canvas,camera,controls,ship,customization,skins,badges,journal,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
+showcase=createShipShowcase({canvas,camera,controls,ship,customization,skins,accessories,badges,journal,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
 // Click-through windows receive no pointer events: poll only the native cursor and raycast this ship.
 let pollingPointer=false;if(bridge.native)setInterval(async()=>{if(pollingPointer||showcase.busy||nativeState.editing||!nativeState.visible||nativeState.minimized)return;pollingPointer=true;
  try{const point=await bridge.pointer();if(!showcase.busy&&!nativeState.editing)await bridge.hover(showcase.hit(...point));}catch(error){console.warn(error);}finally{pollingPointer=false;}
@@ -222,7 +226,7 @@ function frame(now){
  const pos=route(travelTime),next=route(travelTime+.12),heading=Math.atan2(next.x-pos.x,next.z-pos.z);const dx=Math.sin(heading),dz=Math.cos(heading);ship.position.set(pos.x,wave(pos.x,pos.z,t)+.05,pos.z);ship.rotation.set((wave(pos.x-dx*.6,pos.z-dz*.6,t)-wave(pos.x+dx*.6,pos.z+dz*.6,t))*.42,heading,(wave(pos.x+dz*.3,pos.z-dx*.3,t)-wave(pos.x-dz*.3,pos.z+dx*.3,t))*.45);
  encounterDirector.advance(worldDt,encounterEnvironment(env),!nativeState.paused);encounterVisuals.update(encounterDirector.active(),t,wave);
  wake.mesh.material.color.lerpColors(wakeWhite,wakeGlow,encounterVisuals.bio.value);
- wake.update(t,worldDt,wave,travelTime,!nativeState.paused);showcase.update(dt);customization.animate(dt);
+ wake.update(t,worldDt,wave,travelTime,!nativeState.paused);showcase.update(dt);customization.animate(dt,worldDt);
  birds.forEach(({g,wings,phase},i)=>{
   const mode=env.period==='night'||env.weather==='storm'?'night':env.weather==='clear'?'sunny':'rainy';if(env.stormWarning){g.userData.fade=(g.userData.fade??1)*Math.exp(-dt*1.5);g.traverse(p=>{if(p.isMesh)p.material.opacity=g.userData.fade;});g.visible=g.userData.fade>.005;}else updateGullVisibility(g,mode,i,dt);if(!g.visible)return;
   const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.15,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;

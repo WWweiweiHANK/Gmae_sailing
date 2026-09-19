@@ -1,0 +1,47 @@
+{
+  "selections": 118,
+  "checks": "all fittings selectable / 7 mounts / all9 skins retain choices / atomic save and reload / name and badge retained / no points spent / 560x540 and390x700 layout / keyboard tabs / journal / repeated GPU resource stability",
+  "resources": [
+    {
+      "timestamp": "2026-09-19T16:57:51.495Z",
+      "fps": 29.599408011839767,
+      "cpuMeanMs": 1.0668918923348993,
+      "cpuP95Ms": 1.5999999940395355,
+      "calls": 163,
+      "triangles": 16186,
+      "geometries": 56,
+      "textures": 2,
+      "programs": 11,
+      "buffer": [
+        1100,
+        800
+      ],
+      "period": "day",
+      "weather": "clear",
+      "aurora": false,
+      "jsHeapBytes": 20401477,
+      "totalFrames": 298
+    },
+    {
+      "timestamp": "2026-09-19T16:58:06.521Z",
+      "fps": 29.999400011999768,
+      "cpuMeanMs": 1.0113333342472712,
+      "cpuP95Ms": 1.5,
+      "calls": 163,
+      "triangles": 16186,
+      "geometries": 56,
+      "textures": 2,
+      "programs": 11,
+      "buffer": [
+        1100,
+        800
+      ],
+      "period": "day",
+      "weather": "clear",
+      "aurora": false,
+      "jsHeapBytes": 20612363,
+      "totalFrames": 742
+    }
+  ],
+  "errors": []
+}

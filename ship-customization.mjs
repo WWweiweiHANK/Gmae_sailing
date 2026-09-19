@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import {colorCatalog} from './color-catalog.mjs';
 import {badgeId,badgeCatalog} from './badges.mjs';
 import {boatSkin} from './boat-skins.mjs';
-export const DEFAULT_SHIP={name:'小雨号',skinId:'classic',hullColor:'#fffcf2',roofColor:'#284c65',stripeColor:'#284c65',equippedBadge:null};
+import {DEFAULT_ACCESSORIES,sanitizeAccessories,createBoatAccessories} from './boat-accessories.mjs';
+export const DEFAULT_SHIP={name:'小雨号',skinId:'classic',accessories:DEFAULT_ACCESSORIES,hullColor:'#fffcf2',roofColor:'#284c65',stripeColor:'#284c65',equippedBadge:null};
 export const SHIP_STORAGE_KEY='tiny-tides-ship-v1';
 
 // ASCII occupies one unit; CJK and other wide characters occupy two (six CJK / twelve ASCII).
@@ -19,6 +20,7 @@ export function sanitizeShip(value){
  const data=value&&typeof value==='object'?value:{};
  const result={...DEFAULT_SHIP,name:shipName(data.name)||DEFAULT_SHIP.name};
  result.skinId=boatSkin(data.skinId)?.id??'classic';
+ result.accessories=sanitizeAccessories(data.accessories);
  for(const key of ['hullColor','roofColor','stripeColor'])if(colorCatalog.some(color=>color.value===data[key]))result[key]=data[key];
  result.equippedBadge=badgeId(data.equippedBadge);
  return result;
@@ -65,6 +67,7 @@ export function createShipCustomization(ship,{hull,roof,stripe},onNotice,saved,o
  const data=sanitizeShip(saved);
  const transition=boat?null:createShipColorTransition({hullColor:hull,roofColor:roof,stripeColor:stripe},data);
  if(boat)boat.setSkin(data.skinId);
+ const fittings=boat?createBoatAccessories(boat):null;fittings?.apply(data.accessories);
  // One atlas for both sides, redrawn in place; edits never allocate another GPU texture.
  const atlas=document.createElement('canvas');atlas.width=768;atlas.height=160;
  const ctx=atlas.getContext('2d'),texture=new THREE.CanvasTexture(atlas);texture.colorSpace=THREE.SRGBColorSpace;
@@ -73,10 +76,10 @@ export function createShipCustomization(ship,{hull,roof,stripe},onNotice,saved,o
  const geometry=new THREE.PlaneGeometry(1.02,.205);
  for(const side of [-1,1]){
   const label=new THREE.Mesh(geometry,material);label.name='ship-name-and-badge';
-  label.position.set(side*(ship.userData.nameplateWidth?ship.userData.nameplateWidth*.976+.012:.656),.265,-.12);label.rotation.y=side*Math.PI/2;ship.add(label);
+  label.userData.side=side;label.position.set(side*(boat?boat.mounts.nameplate.userData.sideOffset:.656),boat?0:.265,boat?0:-.12);label.rotation.y=side*Math.PI/2;(boat?boat.mounts.nameplate:ship).add(label);
  }
  function apply(){
-  ctx.clearRect(0,0,768,160);ctx.fillStyle='#fff9ec';ctx.beginPath();ctx.roundRect(4,8,760,144,28);ctx.fill();
+  const plate=data.accessories.nameplate;ctx.clearRect(0,0,768,160);ctx.fillStyle=plate==='plate-wood'?'#dfbf91':plate==='plate-blue'?'#bcdce6':'#fff9ec';ctx.beginPath();ctx.roundRect(4,8,760,144,28);ctx.fill();
   ctx.strokeStyle='#728a8a';ctx.lineWidth=3;ctx.stroke();
   const offset=displayedBadge?154:30;
   if(displayedBadge)drawBadge(ctx,displayedBadge,82,80,125);
@@ -85,10 +88,10 @@ export function createShipCustomization(ship,{hull,roof,stripe},onNotice,saved,o
   ctx.fillStyle='#294858';ctx.textBaseline='middle';ctx.textAlign='center';ctx.fillText(data.name,(offset+738)/2,82);texture.needsUpdate=true;
  }
  apply();
- return {data,texture,animate(dt){transition?.update(dt);
+ return {data,texture,animate(dt,worldDt=dt){transition?.update(dt);fittings?.animate(worldDt);
   if(fadePhase==='out'){material.opacity=Math.max(0,material.opacity-dt/.15);if(material.opacity===0){displayedBadge=data.equippedBadge;apply();fadePhase='in';}}
   else if(fadePhase==='in'){material.opacity=Math.min(1,material.opacity+dt/.15);if(material.opacity===1)fadePhase='idle';}
- },update(patch,{save=true}={}){const oldName=data.name,oldBadge=data.equippedBadge;Object.assign(data,sanitizeShip({...data,...patch}));transition?.set(data);boat?.setSkin(data.skinId);if(oldBadge!==data.equippedBadge)fadePhase='out';if(oldName!==data.name)apply();
+ },update(patch,{save=true}={}){const oldName=data.name,oldBadge=data.equippedBadge,oldPlate=data.accessories.nameplate;Object.assign(data,sanitizeShip({...data,...patch}));transition?.set(data);boat?.setSkin(data.skinId);fittings?.apply(data.accessories);if(oldBadge!==data.equippedBadge)fadePhase='out';if(oldName!==data.name||oldPlate!==data.accessories.nameplate)apply();
   if(save)onNotice(onSave(data)?'已保存在本机':'外观已应用，但本机保存失败；刷新后可能丢失。');
  }};
 }

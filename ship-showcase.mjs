@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {drawBadge,shipName} from './ship-customization.mjs';
 import {boatSkinCatalog,skinThumbnail} from './boat-skins.mjs';
+import {accessoryCatalog,accessorySlots} from './boat-accessories.mjs';
 import {createJournalView} from './journal/journal-view.mjs';
 
 export function createShowcaseCamera(camera,controls){
@@ -25,18 +26,32 @@ export function createShowcaseCamera(camera,controls){
  }};
 }
 
-export function createShipShowcase({canvas,camera,controls,ship,customization,skins,badges,journal,onEnter,onLeave}){
+export function createShipShowcase({canvas,camera,controls,ship,customization,skins,accessories,badges,journal,onEnter,onLeave}){
  const dialog=document.querySelector('#my-ship'),panel=document.querySelector('#ship-panel');
  const notice=document.querySelector('#ship-notice'),nameInput=document.querySelector('#ship-name');
  const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
  let phase='sailing',progress=0,view=null,yaw=0,pitch=0,vYaw=0,vPitch=0,drag=null,pressed=null,previousFocus=null;
  const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
  const journalView=createJournalView({journal,customization,canOpen:()=>phase==='open',onMode:()=>{drag=null;pressed=null;vYaw=0;vPitch=0;}});
- const tabs=[...dialog.querySelectorAll('[role=tab]')];
+ const tabs=[...dialog.querySelectorAll('.ship-tabs [role=tab]')];
  function tab(id){if(id!=='badges')acknowledgeBadges();for(const button of tabs){const active=button.dataset.tab===id;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;document.querySelector('#ship-'+button.dataset.tab).hidden=!active;}if(id==='badges'){refreshBadges();acknowledgeBadges();}}
- tabs.forEach((button,i)=>{button.addEventListener('click',()=>tab(button.dataset.tab));button.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const next=tabs[(i+(e.key==='ArrowRight'?1:2))%3];tab(next.dataset.tab);next.focus();}});});
+ tabs.forEach((button,i)=>{button.addEventListener('click',()=>tab(button.dataset.tab));button.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const next=tabs[(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length];tab(next.dataset.tab);next.focus();}});});
  let noticeTimer=0;
  function feedback(message,temporary=false){clearTimeout(noticeTimer);notice.textContent=message;if(temporary)noticeTimer=setTimeout(()=>{if(notice.textContent===message)notice.textContent='';},1800);}
+ const slotSelect=document.querySelector('#accessory-slot'),accessoryOptions=document.querySelector('#accessory-options');
+ for(const [id,name] of Object.entries(accessorySlots))slotSelect.add(new Option(name,id));
+ const slotHints={flag:'顶板前侧旗杆 · 与摆件分开',deck:'船头空出的甲板 · 每次放置一件',chimney:'船舱后方 · 保留原装或替换',lifering:'船舱两侧 · 救生圈或立体徽章',nameplate:'船体两侧 · 保留船名与航行徽章',charm:'船尾侧边挂钩 · 随航行轻轻摇摆',roof:'顶板独立位置 · 每次放置一件'};
+ function refreshAccessories(){
+  const slot=slotSelect.value;document.querySelector('#accessory-hint').textContent=slotHints[slot];accessoryOptions.replaceChildren();
+  const items=accessoryCatalog.filter(item=>item.slots.includes(slot));if(slot!=='nameplate')items.unshift({id:null,name:'不安装'});
+  for(const item of items){const button=document.createElement('button');button.type='button';button.className='accessory-card';button.dataset.accessory=item.id??'none';button.setAttribute('aria-pressed',String(customization.data.accessories[slot]===item.id));
+   const icon=document.createElement('span');icon.className='accessory-thumb';icon.setAttribute('aria-hidden','true');
+   if(item.thumb){icon.style.backgroundPosition=`${-item.thumb[0]*.23}px ${-(item.thumb[1]+(slot==='charm'?15:0))*.23}px`;}
+   else{icon.classList.add('accessory-symbol');icon.textContent=item.id?.startsWith('plate')?'船名':item.id?'▥':'—';if(item.id)icon.style.color=item.id==='plate-wood'?'#aa835a':item.id==='plate-blue'?'#709bac':'#7f9394';}
+   const label=document.createElement('span');label.textContent=item.name;button.append(icon,label);button.addEventListener('click',()=>{const result=accessories.equip(slot,item.id);if(result==='save-failed'){feedback('未能保存装饰，请稍后重试。');return;}const focused=item.id??'none';refreshAccessories();accessoryOptions.querySelector(`[data-accessory="${focused}"]`).focus();feedback(item.id?'已安装'+item.name:'已腾出'+accessorySlots[slot]+'位置',true);});accessoryOptions.append(button);
+  }
+ }
+ slotSelect.addEventListener('change',refreshAccessories);
  const skinButtons=new Map();
  for(const skin of boatSkinCatalog){
   const button=document.createElement('button');button.type='button';button.className='skin-card';button.dataset.skin=skin.id;button.title=skin.description;button.innerHTML=skinThumbnail(skin);
@@ -72,7 +87,7 @@ export function createShipShowcase({canvas,camera,controls,ship,customization,sk
   customization.update({name});if(name!==nameInput.value.trim())notice.textContent='船名已按铭牌宽度缩短并保存。';nameInput.value=name;refresh();});
  function refresh(){
   for(const skin of boatSkinCatalog){const button=skinButtons.get(skin.id),selected=customization.data.skinId===skin.id;button.setAttribute('aria-pressed',String(selected));button.setAttribute('aria-label',skin.name+(selected?' · 使用中':''));button.querySelector('small').textContent=selected?'✓ 使用中':skin.en;}
-  refreshBadges();document.querySelector('#ship-title-name').textContent=customization.data.name;
+  refreshAccessories();refreshBadges();document.querySelector('#ship-title-name').textContent=customization.data.name;
  }
  function hit(x,y){if(x<0||y<0||x>innerWidth||y>innerHeight)return false;pointer.set(x/innerWidth*2-1,1-y/innerHeight*2);ship.updateWorldMatrix(true,true);camera.updateMatrixWorld();ray.setFromCamera(pointer,camera);return ray.intersectObject(ship,true).length>0;}
  function open(){if(phase!=='sailing')return;previousFocus=document.activeElement;yaw=0;pitch=0;vYaw=0;vPitch=0;phase='opening';progress=0;view=createShowcaseCamera(camera,controls);document.body.dataset.showcase='true';dialog.hidden=false;dialog.classList.remove('leaving');nameInput.value=customization.data.name;notice.textContent='外观与航行进度会自动保存在本机';onEnter();tab('skins');refresh();document.querySelector('#ship-close').focus();}
@@ -83,7 +98,7 @@ export function createShipShowcase({canvas,camera,controls,ship,customization,sk
   if(phase==='sailing'){if(document.activeElement===canvas&&(e.key==='Enter'||e.key===' ')){e.preventDefault();open();}return;}
   if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();return;}
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&document.activeElement===canvas){e.preventDefault();yaw+=(e.key==='ArrowLeft'?.15:e.key==='ArrowRight'?-.15:0);pitch=THREE.MathUtils.clamp(pitch+(e.key==='ArrowUp'?.08:e.key==='ArrowDown'?-.08:0),-1,.04);}
-  if(e.key==='Tab'){const focusable=[canvas,...dialog.querySelectorAll('button:not(:disabled),input')].filter(el=>el.tabIndex>=0&&el.getClientRects().length);const index=focusable.indexOf(document.activeElement);e.preventDefault();focusable[(index+(e.shiftKey?-1:1)+focusable.length)%focusable.length].focus();}
+  if(e.key==='Tab'){const focusable=[canvas,...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled)')].filter(el=>el.tabIndex>=0&&el.getClientRects().length);const index=focusable.indexOf(document.activeElement);e.preventDefault();focusable[(index+(e.shiftKey?-1:1)+focusable.length)%focusable.length].focus();}
  },true);
  canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;if(phase!=='sailing'){
    e.stopImmediatePropagation();if(phase==='open'){drag={id:e.pointerId,x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);canvas.focus();}return;}

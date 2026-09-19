@@ -5,6 +5,7 @@ import {boatSkin} from './boat-skins.mjs';
 // surfaces are replaced and disposed; the nameplate, light and encounter anchors survive.
 export function createBoatModel(initial='classic'){
  const ship=new THREE.Group();ship.name='sailing-boat';
+ const mounts=Object.fromEntries(['flag','deck','chimney','lifering','nameplate','charm','roof'].map(slot=>{const group=new THREE.Group();group.name='mount-'+slot;ship.add(group);return [slot,group];}));
  const material=color=>new THREE.MeshStandardMaterial({color,roughness:.88,flatShading:true});
  const materials=Object.fromEntries(['hull','keel','roof','cabin','chimney','cap','rail','stripe'].map(key=>[key,material('#ffffff')]));
  materials.deck=material('#fff3d7');materials.front=material('#fff2d4');materials.ring=material('#6e9db9');materials.glass=material('#91b7cc');materials.warm=material('#f7df9c');materials.port=material('#18374b');materials.lamp=material('#ffdf94');materials.lamp.emissive.set('#ffc366');materials.glass.emissive.set('#ffcb81');materials.warm.emissive.set('#ffd792');materials.warm.emissiveIntensity=.13;
@@ -48,22 +49,28 @@ export function createBoatModel(initial='classic'){
   add(ringGeometry(roofOutline,[[lower.top,.99],[lower.top+.075,1],[lower.top+.11,.97]]),materials.roof,0,0,cz);
   let highest=lower.top+.11;
   if(s.upper){const uw=cw*(s.form==='wide'?.83:.72),ud=s.form==='wide'?.86:.78,upper=cabin(uw,s.upper,ud,highest,cz-.02,s.form==='wide'?.15:0,materials.front);box(uw+.15,.075,ud+.12,materials.roof,0,upper.top+.037,cz-.04);highest=upper.top+.075;}
-  else{box(cw*.55,.21,.43,materials.cabin,0,.62,-.91);box(cw*.66,.065,.51,materials.roof,0,.755,-.91);}
-  // Octagonal funnel sits behind the cabin; a warm globe finishes the slender mast.
-  const chimneyBase=Math.max(.78,lower.top-.18),chimneyHeight=s.upper?.60:.65;
-  add(primitives.cylinder,materials.chimney,0,chimneyBase+chimneyHeight/2,-.77,.155,chimneyHeight,.155);
-  add(primitives.cylinder,materials.cap,0,chimneyBase+chimneyHeight+.035,-.77,.176,.105,.176);
-  const mastZ=s.upper?.13:.20,mastTop=highest+.52;rod([0,highest,mastZ],[0,mastTop,mastZ],.018,materials.rail);rod([-.12,mastTop-.20,mastZ],[.12,mastTop-.20,mastZ],.015,materials.rail);add(primitives.ball,materials.lamp,0,mastTop+.045,mastZ,.063,.077,.063);
+  box(cw*.55,.21,.43,materials.cabin,0,.62,-.91);box(cw*.66,.065,.51,materials.roof,0,.755,-.91);
+  // Stable local mounting frames: +Z is the bow. Deck and roof have independent
+  // 0.42 x 0.42 footprints, clear of the cabin, mast, funnel and nameplate.
+  mounts.flag.position.set(-cw*.29,highest,.23);
+  mounts.deck.position.set(0,.53,.88);
+  mounts.chimney.position.set(0,.7875,-.94);mounts.chimney.scale.y=Math.max(1,(highest+.20-.7875)/.68);
+  mounts.lifering.position.set(0,.515+s.cabinHeight*.48,-.13);
+  mounts.lifering.userData.sideOffset=cw/2+.05;
+  mounts.nameplate.position.set(0,.265,-.12);
+  mounts.nameplate.userData.sideOffset=w*.976+.012;
+  mounts.charm.position.set(-w-.10,.715,-.72);mounts.charm.rotation.y=-Math.PI/2;
+  mounts.roof.position.set(.12,highest,-.23);
+  for(const slot of ['lifering','nameplate'])for(const child of mounts[slot].children)if(child.userData.side)child.position.x=child.userData.side*mounts[slot].userData.sideOffset;
   // A continuous, raised rail follows each hull outline, including the curved bow.
   const railing=outline.map(([x,z])=>[x*.93,.715,z*.93]);for(let i=0;i<railing.length;i++){rod(railing[i],railing[(i+1)%railing.length],.014,materials.rail);rod([railing[i][0],.515,railing[i][2]],railing[i],.011,materials.rail);}
   for(const sign of [-1,1]){
-   const life=add(primitives.ring,materials.ring,sign*(cw/2+.038),.515+s.cabinHeight*.48,-.13);life.rotation.y=Math.PI/2;add(primitives.port,materials.warm,sign*(cw/2+.025),.515+s.cabinHeight*.48,-.13,.106,.015,.106).rotation.z=Math.PI/2;
    for(let i=0;i<4;i++){const z=-.64+i*.31;const rim=add(primitives.port,materials.ring,sign*(w*.99+.004),.403,z,.032,.022,.032);rim.rotation.z=Math.PI/2;const glass=add(primitives.port,materials.port,sign*(w*.99+.017),.403,z,.023,.024,.023);glass.rotation.z=Math.PI/2;}
    const anchor=add(primitives.ring,materials.rail,sign*w*.80,.36,.94,.26,.26,.26);anchor.rotation.y=sign*Math.PI*.36;
   }
-  ship.userData.skinId=id;ship.userData.nameplateWidth=w;for(const child of ship.children)if(child.name==='ship-name-and-badge')child.position.x=Math.sign(child.position.x)*(w*.976+.012);
+  ship.userData.skinId=id;
   return true;
  }
  setSkin(initial);
- return {ship,materials,shipLight,setSkin,get skinId(){return skinId;}};
+ return {ship,mounts,materials,shipLight,setSkin,get skinId(){return skinId;}};
 }

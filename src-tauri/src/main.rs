@@ -204,7 +204,14 @@ fn action(app: &tauri::AppHandle, id: &str) -> Result<(), String> {
         }
         "quit" => {
             persist(app)?;
-            app.exit(0);
+            app.emit("save-before-exit", ())
+                .map_err(|e| e.to_string())?;
+            // Let localStorage flush before closing WebView2; still exit if the frontend is frozen.
+            let handle = app.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(2));
+                handle.exit(0);
+            });
             return Ok(());
         }
         _ => return Err("未知操作".into()),
@@ -216,6 +223,10 @@ fn action(app: &tauri::AppHandle, id: &str) -> Result<(), String> {
 #[tauri::command]
 fn pet_action(app: tauri::AppHandle, id: String) -> Result<(), String> {
     action(&app, &id)
+}
+#[tauri::command]
+fn finish_exit(app: tauri::AppHandle) {
+    app.exit(0);
 }
 #[tauri::command]
 fn ship_pointer(app: tauri::AppHandle) -> Result<[f64; 2], String> {
@@ -278,6 +289,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             pet_state,
             pet_action,
+            finish_exit,
             ship_pointer,
             ship_hover,
             drag_pet,

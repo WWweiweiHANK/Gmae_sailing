@@ -13,6 +13,8 @@ import {seaVertexGLSL} from './water-shader.mjs';
 import {createPerformanceMonitor} from './performance-monitor.mjs';
 import {createShipCustomization} from './ship-customization.mjs';
 import {createShipShowcase} from './ship-showcase.mjs';
+import {createSailing,sailingConfig} from './sailing.mjs';
+import {createGameSave,GAME_SAVE_KEY} from './game-save.mjs';
 const canvas = document.querySelector('#scene');
 function showError(text) { document.querySelector('#loading').hidden=true;const el=document.querySelector('#error');el.hidden=false;el.textContent=text; }
 start().catch(error=>{console.error(error);showError('场景未能启动，请检查 WebGL 2 / WebView2。托盘仍可退出或重置。');});
@@ -28,7 +30,16 @@ const initial=scenario==='storm'?{weather:'storm'}:scenario==='aurora'?{period:'
 const environment=createEnvironment(Math.random,{...initial,fixed:qa});
 const clock=createFrameClock();let timer=0,raf=0,contextLost=false;
 let savedCameraApplied=false,lastNativeSound=false,saveTimer=0;
-let showcase=null,travelTime=15;
+let showcase=null,travelTime=15,pageSuspended=false,saveError='';
+const development=typeof __DEV__!=='undefined'&&__DEV__,fastSailing=development&&query.get('sailingDebug')==='fast';
+const store=createGameSave({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},
+ {key:fastSailing?'tiny-tides-game-debug-v1':GAME_SAVE_KEY,onError:message=>{saveError=message;document.querySelector('#ship-notice').textContent=message;console.warn(message);}});
+const sailing=createSailing({initial:store.read().sailingData,config:sailingConfig(development,fastSailing),onSave:sailingData=>{
+ const saved=store.save({sailingData});if(saved)saveError='';if(showcase?.busy)refreshBalance();
+ if(development)console.debug('[航行值]',{...sailingData,isSailingActive:isSailingActive(),debugFast:fastSailing});return saved;
+}});
+function refreshBalance(){const points=sailing.snapshot().points,button=document.querySelector('#ship-balance');document.querySelector('#sailing-points').textContent=String(points);button.title=`航行值：${points}`;button.setAttribute('aria-label',button.title);}
+document.querySelector('#ship-balance').addEventListener('click',()=>{document.querySelector('#ship-notice').textContent=`航行值：${sailing.snapshot().points} · 正常航行一分钟积累一点`;});
 const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,premultipliedAlpha:true,powerPreference:'low-power'});
 renderer.setClearColor(0x000000,0);renderer.setPixelRatio(1);
 let buffer;function resizeBuffer(){buffer=drawingSize(innerWidth,innerHeight,devicePixelRatio,nativeState.settings.fps);renderer.setSize(buffer.width,buffer.height,false);}
@@ -120,9 +131,10 @@ function restoreView(record){if(!record||!Array.isArray(record.position)||!Array
  camera.position.fromArray(record.position);controls.target.set(0,2.35,0);fitCamera();controls.update();}
 controls.addEventListener('change',saveView);
 waveSlider.addEventListener('input',()=>{waveTarget=Number(waveSlider.value)*.022;document.querySelector('#wave-value').value=waveSlider.value+'%';saveView();});
-function active(){return !contextLost&&(!nativeState.paused||showcase?.busy)&&nativeState.visible&&!nativeState.minimized&&(bridge?.native||!document.hidden);}
+function active(){return !pageSuspended&&!contextLost&&(!nativeState.paused||showcase?.busy)&&nativeState.visible&&!nativeState.minimized&&(bridge?.native||!document.hidden);}
+function isSailingActive(){return Boolean(active()&&!nativeState.paused&&!showcase?.busy);}
 let previousActive=false;
-function syncScheduler(){const run=active();if(run===previousActive)return;previousActive=run;clock.reset();monitor.resetInterval();void ambience.setVisible(run);cancelAnimationFrame(raf);clearTimeout(timer);if(run)raf=requestAnimationFrame(frame);}
+function syncScheduler(){sailing.tick(performance.now(),isSailingActive());const run=active();if(run===previousActive)return;previousActive=run;clock.reset();monitor.resetInterval();void ambience.setVisible(run);cancelAnimationFrame(raf);clearTimeout(timer);if(run)raf=requestAnimationFrame(frame);}
 function showNative(next){const oldFps=nativeState.settings.fps,oldWave=nativeState.settings.wave,wasInspecting=nativeState.inspecting;nativeState=next;
  if(wasInspecting&&!next.inspecting&&showcase?.busy)showcase.close();
  document.body.dataset.editing=String(next.editing);controls.enabled=next.editing&&!showcase?.busy;
@@ -132,9 +144,10 @@ function showNative(next){const oldFps=nativeState.settings.fps,oldWave=nativeSt
  if(next.settings.sound!==lastNativeSound){lastNativeSound=next.settings.sound;ambience.setEnabled(next.settings.sound).catch(()=>{document.querySelector('#status').textContent='声音未能开启，请在编辑模式点击听海。';});}
  document.querySelector('#pause').textContent=next.paused?'继续':'暂停';document.querySelector('#fps').value=String(next.settings.fps);syncScheduler();
 }
-bridge=await connectDesktop(showNative,()=>{if(showcase?.busy)showcase.close();else{resetView();saveView();}},()=>report());document.body.dataset.native=String(bridge.native);
-const customization=createShipCustomization(ship,{hull:hullMat,roof:roofMat,stripe:stripeMat},message=>{document.querySelector('#ship-notice').textContent=message;});
-showcase=createShipShowcase({canvas,camera,controls,ship,customization,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();}});
+bridge=await connectDesktop(showNative,()=>{if(showcase?.busy)showcase.close();else{resetView();saveView();}},()=>report(),()=>{pageSuspended=true;syncScheduler();sailing.flush();});document.body.dataset.native=String(bridge.native);
+const customization=createShipCustomization(ship,{hull:hullMat,roof:roofMat,stripe:stripeMat},message=>{document.querySelector('#ship-notice').textContent=message;},store.read().shipCustomization,
+ shipCustomization=>store.save({shipCustomization,sailingData:sailing.snapshot()}));
+showcase=createShipShowcase({canvas,camera,controls,ship,customization,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
 // Click-through windows receive no pointer events: poll only the native cursor and raycast this ship.
 let pollingPointer=false;if(bridge.native)setInterval(async()=>{if(pollingPointer||showcase.busy||nativeState.editing||!nativeState.visible||nativeState.minimized)return;pollingPointer=true;
  try{const point=await bridge.pointer();if(!showcase.busy&&!nativeState.editing)await bridge.hover(showcase.hit(...point));}catch(error){console.warn(error);}finally{pollingPointer=false;}
@@ -149,18 +162,24 @@ document.querySelector('#fps').addEventListener('change',event=>bridge.action('f
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!showcase.busy&&bridge.native&&nativeState.editing)void bridge.action('lock');});
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();if(!showcase.busy)fitCamera();resizeBuffer();});
 document.addEventListener('visibilitychange',syncScheduler);
+window.addEventListener('beforeunload',()=>{sailing.tick(performance.now(),isSailingActive());sailing.flush();});
+function suspendPage(){pageSuspended=true;syncScheduler();sailing.flush();}
+function resumePage(){pageSuspended=false;syncScheduler();}
+window.addEventListener('pagehide',suspendPage);window.addEventListener('pageshow',resumePage);
+document.addEventListener('freeze',suspendPage);document.addEventListener('resume',resumePage);
 canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();contextLost=true;syncScheduler();showError('图形上下文已暂停；恢复后自动继续。');});
 canvas.addEventListener('webglcontextrestored',()=>{contextLost=false;document.querySelector('#error').hidden=true;syncScheduler();});
 let latestEnvironment=environment.snapshot();
-function report(){return {...monitor.report(),environment:latestEnvironment,paused:!active(),camera:cameraRecord(),rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,showcase:showcase?.snapshot(),travelTime};}
+function report(){return {...monitor.report(),environment:latestEnvironment,paused:!active(),camera:cameraRecord(),rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
 let lastAlpha=null,diagnosticAt=0,startupRecorded=false;
 if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'get_ocean_state',title:'查看桌宠状态与实测性能',description:'只读场景状态、帧率、CPU提交时间及资源数量。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:report});}
 if(qa){document.body.dataset.qa='true';document.querySelector('#qa-panel').hidden=false;document.querySelector('#wallpaper').addEventListener('change',e=>{document.body.dataset.wallpaper=e.target.value;});}
 document.querySelector('#export').addEventListener('click',()=>{const data=report();void bridge.diagnostics(data);const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='tiny-tides-diagnostics.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 function frame(now){
  if(!active()){syncScheduler();return;}raf=requestAnimationFrame(frame);
+ sailing.tick(performance.now(),isSailingActive());
  const dt=clock.tick(now,true,nativeState.settings.fps);if(!dt)return;const cpuStart=performance.now();
- const worldDt=nativeState.paused?0:dt;state.time+=worldDt;environment.advance(worldDt);if(!showcase.busy)travelTime+=worldDt;const env=environment.snapshot();latestEnvironment=env;const t=state.time,from=periodPalettes[env.fromPeriod],pal=periodPalettes[env.period],mix=env.periodBlend;
+ const worldDt=nativeState.paused?0:dt;state.time+=worldDt;environment.advance(worldDt);if(isSailingActive())travelTime+=worldDt;const env=environment.snapshot();latestEnvironment=env;const t=state.time,from=periodPalettes[env.fromPeriod],pal=periodPalettes[env.period],mix=env.periodBlend;
  nightMix=env.night;rainMix=env.rain;duskMix=(env.fromPeriod==='dusk'?1:0)*(1-mix)+(env.period==='dusk'?1:0)*mix;
  waveStrength.value+=(waveTarget-waveStrength.value)*(1-Math.exp(-dt*3));
  const canDolphin=env.period==='day'&&env.weather==='clear';
@@ -178,7 +197,7 @@ function frame(now){
  sun.intensity=(from.sun+(pal.sun-from.sun)*mix)*(1-env.shade*.76);hemi.intensity=(from.hemi+(pal.hemi-from.hemi)*mix)*(1-env.shade*.15);fill.intensity=1.1-nightMix*.55-duskMix*.55;
  waterTime.value=t;waterRain.value=rainMix;
  const pos=route(travelTime),next=route(travelTime+.12),heading=Math.atan2(next.x-pos.x,next.z-pos.z);const dx=Math.sin(heading),dz=Math.cos(heading);ship.position.set(pos.x,wave(pos.x,pos.z,t)+.05,pos.z);ship.rotation.set((wave(pos.x-dx*.6,pos.z-dz*.6,t)-wave(pos.x+dx*.6,pos.z+dz*.6,t))*.42,heading,(wave(pos.x+dz*.3,pos.z-dx*.3,t)-wave(pos.x-dz*.3,pos.z+dx*.3,t))*.45);flag.rotation.y=Math.sin(t*4)*.12;
- wake.update(t,worldDt,wave,travelTime,!showcase.busy);showcase.update(dt);
+ wake.update(t,worldDt,wave,travelTime,isSailingActive());showcase.update(dt);
  birds.forEach(({g,wings,phase},i)=>{
   const mode=env.period==='night'||env.weather==='storm'?'night':env.weather==='clear'?'sunny':'rainy';if(env.stormWarning){g.userData.fade=(g.userData.fade??1)*Math.exp(-dt*1.5);g.traverse(p=>{if(p.isMesh)p.material.opacity=g.userData.fade;});g.visible=g.userData.fade>.005;}else updateGullVisibility(g,mode,i,dt);if(!g.visible)return;
   const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.15,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;

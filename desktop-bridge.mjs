@@ -1,6 +1,6 @@
 import {isTauri,invoke} from '@tauri-apps/api/core';
 import {listen} from '@tauri-apps/api/event';
-export async function connectDesktop(onState,onReset,onDiagnostics){
+export async function connectDesktop(onState,onReset,onDiagnostics,onExit){
  const native=isTauri();
  let state={editing:!native,paused:false,visible:true,minimized:false,settings:{fps:30,wave:1,sound:false,camera:null,topmost:true}};
  const update=next=>{state=next;onState(next);};
@@ -8,6 +8,7 @@ export async function connectDesktop(onState,onReset,onDiagnostics){
   await listen('pet-state',event=>update(event.payload));
   await listen('reset-camera',onReset);
   await listen('export-diagnostics',()=>invoke('write_diagnostics',{report:onDiagnostics()}).catch(console.warn));
+  await listen('save-before-exit',()=>{onExit();void invoke('finish_exit').catch(console.warn);});
   update(await invoke('pet_state'));
   // Native hide/minimize does not consistently dispatch document.visibilitychange in every WebView2 release.
   setInterval(()=>invoke('pet_state').then(update).catch(console.warn),1000);

@@ -4,7 +4,7 @@ const qa=process.argv.includes('--qa');
 const desktop=process.argv.includes('--desktop');
 const outputDir=qa?'qa-preview':desktop?'desktop-dist':'preview';
 await mkdir(outputDir,{recursive:true});
-const result = await build({entryPoints:['main.js'],define:{__QA__:String(qa)},bundle:true,minify:true,format:'iife',write:false,legalComments:'inline',loader:{'.mp3':'dataurl'}});
+const result = await build({entryPoints:['main.js'],define:{__QA__:String(qa),__DEV__:String(!desktop)},bundle:true,minify:true,format:'iife',write:false,legalComments:'inline',loader:{'.mp3':'dataurl'}});
 const template = await readFile('template.html','utf8');
 const license = await readFile('THREE-LICENSE.txt','utf8');
 const output=template.replace('/* SCENE_BUNDLE */', () => result.outputFiles[0].text.replaceAll('</script','<\\/script'));

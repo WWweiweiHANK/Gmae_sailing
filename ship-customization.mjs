@@ -45,8 +45,7 @@ export function drawBadge(ctx,id,x,y,size){
  ctx.restore();
 }
 
-export function createShipCustomization(ship,{hull,roof,stripe},onNotice){
- let saved;try{saved=JSON.parse(localStorage.getItem(SHIP_STORAGE_KEY));}catch{}
+export function createShipCustomization(ship,{hull,roof,stripe},onNotice,saved,onSave){
  const data=sanitizeShip(saved);
  // One atlas for both sides, redrawn in place; edits never allocate another GPU texture.
  const atlas=document.createElement('canvas');atlas.width=768;atlas.height=160;
@@ -69,7 +68,6 @@ export function createShipCustomization(ship,{hull,roof,stripe},onNotice){
  }
  apply();
  return {data,texture,update(patch){Object.assign(data,sanitizeShip({...data,...patch}));apply();
-  try{localStorage.setItem(SHIP_STORAGE_KEY,JSON.stringify(data));onNotice('已保存在本机');}
-  catch{onNotice('外观已应用，但本机保存失败；刷新后可能丢失。');}
+  onNotice(onSave(data)?'已保存在本机':'外观已应用，但本机保存失败；刷新后可能丢失。');
  }};
 }

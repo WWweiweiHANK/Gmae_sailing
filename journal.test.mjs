@@ -38,7 +38,7 @@ test('failed writes retain entries in memory, retry saves and damaged journal re
  const old=JSON.parse(storage.getItem(GAME_SAVE_KEY));old.journalEntries.push(null,{id:'broken'},old.journalEntries[0]);storage.setItem(GAME_SAVE_KEY,JSON.stringify(old));assert.equal(createGameSave(storage).read().journalEntries.length,1);
 });
 test('version four upgrades without inventing past journals or losing sailing and discoveries',()=>{
- const {storage}=setup();storage.setItem(GAME_SAVE_KEY,JSON.stringify({version:4,shipCustomization:{name:'旧船'},sailingData:{points:42,totalSailingSeconds:300},encounterHistory:{pink_dolphin:{seenCount:3,completedCount:2}}}));const save=createGameSave(storage).read();assert.equal(save.sailingData.points,42);assert.equal(save.encounterHistory.pink_dolphin.seenCount,3);assert.deepEqual(save.journalEntries,[]);assert.equal(save.version,5);
+ const {storage}=setup();storage.setItem(GAME_SAVE_KEY,JSON.stringify({version:4,shipCustomization:{name:'旧船'},sailingData:{points:42,totalSailingSeconds:300},encounterHistory:{pink_dolphin:{seenCount:3,completedCount:2}}}));const save=createGameSave(storage).read();assert.equal(save.sailingData.points,42);assert.equal(save.encounterHistory.pink_dolphin.seenCount,3);assert.deepEqual(save.journalEntries,[]);assert.equal(save.version,6);
 });
 test('malformed completion payloads cannot break the event bus or add a journal',()=>{
  const {journal:j,bus}=setup();for(const bad of [{...event(),encounterId:'toString'},{...event(),seenCount:NaN},{...event(),weather:'unknown'},{...event(),endTime:'bad'}])assert.doesNotThrow(()=>bus.emitWorldEvent('encounter_completed',bad));assert.equal(j.entries().length,0);

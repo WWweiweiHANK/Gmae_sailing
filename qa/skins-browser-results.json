@@ -1,0 +1,46 @@
+{
+  "checks": "nine skins / no color controls / name and badge preservation / no spending / journal return / 560x540 fit / 45 switches release resources / reload",
+  "resources": [
+    {
+      "timestamp": "2026-09-19T16:33:18.478Z",
+      "fps": 29.99880004799809,
+      "cpuMeanMs": 1.071999999086062,
+      "cpuP95Ms": 1.800000011920929,
+      "calls": 124,
+      "triangles": 14228,
+      "geometries": 47,
+      "textures": 2,
+      "programs": 11,
+      "buffer": [
+        560,
+        540
+      ],
+      "period": "day",
+      "weather": "clear",
+      "aurora": false,
+      "jsHeapBytes": 19902958,
+      "totalFrames": 305
+    },
+    {
+      "timestamp": "2026-09-19T16:33:23.478Z",
+      "fps": 29.999400011999757,
+      "cpuMeanMs": 1.0546666665871938,
+      "cpuP95Ms": 1.699999988079071,
+      "calls": 124,
+      "triangles": 14228,
+      "geometries": 47,
+      "textures": 2,
+      "programs": 11,
+      "buffer": [
+        560,
+        540
+      ],
+      "period": "day",
+      "weather": "clear",
+      "aurora": false,
+      "jsHeapBytes": 23062018,
+      "totalFrames": 455
+    }
+  ],
+  "errors": []
+}

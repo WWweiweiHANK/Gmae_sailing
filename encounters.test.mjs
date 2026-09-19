@@ -29,7 +29,7 @@ test('automatic schedule has quiet windows, avoids immediate repeats and keeps l
 });
 test('souvenirs unlock once and old saves retain all existing progression',()=>{
  const {director:d,store,storage}=setup();assert.equal(d.unlockSouvenir('not_real'),false);assert.equal(d.unlockSouvenir('pink_dolphin_charm'),true);assert.equal(d.unlockSouvenir('pink_dolphin_charm'),false);assert.deepEqual(store.read().ownedSouvenirs,['pink_dolphin_charm']);
- storage.setItem(GAME_SAVE_KEY,JSON.stringify({version:3,shipCustomization:{name:'晚风号',hullColor:'#eddb9b'},sailingData:{points:85,totalSailingSeconds:500},ownedColors:['yellow']}));const migrated=createGameSave(storage).read();assert.equal(migrated.version,5);assert.equal(migrated.sailingData.points,85);assert.equal(migrated.shipCustomization.name,'晚风号');assert.deepEqual(migrated.encounterHistory,{});
+ storage.setItem(GAME_SAVE_KEY,JSON.stringify({version:3,shipCustomization:{name:'晚风号',hullColor:'#eddb9b'},sailingData:{points:85,totalSailingSeconds:500},ownedColors:['yellow']}));const migrated=createGameSave(storage).read();assert.equal(migrated.version,6);assert.equal(migrated.sailingData.points,85);assert.equal(migrated.shipCustomization.name,'晚风号');assert.deepEqual(migrated.encounterHistory,{});
 });
 test('all ten visual handlers reuse their objects and return to a quiet scene after cleanup',async()=>{
  const THREE=await import('three'),{createVoyageEffects}=await import('./scene-effects.mjs');let visuals={};try{visuals=await import('./encounter-visuals.mjs');}catch{}assert.equal(typeof visuals.createEncounterVisuals,'function');

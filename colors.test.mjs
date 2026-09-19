@@ -15,7 +15,7 @@ function setup(storage=disk(),points=200){
 test('new saves own three colors, old equipped colors migrate without losing sailing or appearance',()=>{
  const storage=disk();assert.deepEqual(createGameSave(storage).read().ownedColors,['cream','navy','skyBlue']);
  storage.setItem(GAME_SAVE_KEY,JSON.stringify({version:1,shipCustomization:{...DEFAULT_SHIP,name:'晚风号',hullColor:'#a9d5bd',stripeColor:'#42685f'},sailingData:{points:86,accumulatedSeconds:12,totalSailingSeconds:5172}}));
- const saved=createGameSave(storage).read();assert.equal(saved.version,5);assert.ok(saved.ownedColors.includes('mint'));assert.ok(saved.ownedColors.includes('forest'));assert.equal(saved.shipCustomization.name,'晚风号');assert.equal(saved.sailingData.points,86);
+ const saved=createGameSave(storage).read();assert.equal(saved.version,6);assert.ok(saved.ownedColors.includes('mint'));assert.ok(saved.ownedColors.includes('forest'));assert.equal(saved.shipCustomization.name,'晚风号');assert.equal(saved.sailingData.points,86);
 });
 test('unlock charges once, equips immediately, works on all parts and survives reload as one save',()=>{
  const storage=disk(),{shop,sailing,customization}=setup(storage);

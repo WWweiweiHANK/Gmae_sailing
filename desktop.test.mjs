@@ -92,3 +92,8 @@ test('GM environment can immediately stage every encounter without changing elap
  assert.equal(world.stage({period:'night',weather:'clear'}),true);let s=world.snapshot();assert.equal(s.period,'night');assert.equal(s.night,1);assert.equal(s.weather,'clear');assert.equal(s.worldTime,before);assert.equal(s.auroraAllowed,false);
  assert.equal(world.stage({period:'invalid',weather:'clear'}),false);s=world.snapshot();assert.equal(s.period,'night');
 });
+
+test('web preview starts locked so the explicit edit entry is visible',async()=>{
+ const bridge=await import('./desktop-bridge.mjs');assert.equal(typeof bridge.initialPetState,'function');
+ assert.equal(bridge.initialPetState(false).editing,false);assert.equal(bridge.initialPetState(true).editing,false);
+});

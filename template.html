@@ -15,9 +15,9 @@ body[data-showcase=true] #toolbar,body[data-showcase=true] #edit,body[data-showc
 @keyframes ship-panel-in{from{opacity:0;translate:0 10px}to{opacity:1;translate:0 0}}@media(prefers-reduced-motion:reduce){#ship-panel{animation:none}#my-ship.leaving{transition:none}}
 @media(max-width:450px){#ship-panel{padding:10px 13px;bottom:12px}#ship-colors fieldset{gap:5px}#ship-colors legend{width:62px}.ship-swatch{width:22px;height:22px;min-width:22px}.ship-heading{top:15px;left:19px}.ship-heading h1{font-size:20px}}
 </style></head><body data-native="true" data-editing="false">
-<canvas id="scene" tabindex="0" aria-label="微缩海洋，点击小船或按回车打开我的船；展示中拖动小船或用方向键旋转"></canvas>
+<canvas id="scene" tabindex="0" aria-label="微缩海洋，点击小船或按回车打开我的船；展示中拖动画面或用方向键环绕观察航行中的小船"></canvas>
 <section id="my-ship" role="dialog" aria-modal="true" aria-label="我的船" hidden>
- <header class="ship-heading"><small>A LITTLE BOAT, YOUR OWN</small><h1>我的船</h1><p><span id="ship-title-name">小雨号</span> · 拖动小船，慢慢看看</p></header>
+ <header class="ship-heading"><small>A LITTLE BOAT, YOUR OWN</small><h1>我的船</h1><p><span id="ship-title-name">小雨号</span> · 随船航行，拖动画面环绕看看</p></header>
  <button id="ship-close" aria-label="返回海洋" title="返回海洋 · Esc">×</button>
  <button id="ship-balance" type="button" title="航行值：0" aria-label="航行值：0"><svg viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M1 5q3-4 6 0t6 0t6 0t4 0M1 12q3-4 6 0t6 0t6 0t4 0"/></svg><span id="sailing-points">0</span></button>
  <div id="ship-panel">

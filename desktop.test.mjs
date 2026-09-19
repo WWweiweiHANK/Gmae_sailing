@@ -69,3 +69,20 @@ test('stationary ship emits no wake and resumes at the frozen route, without a b
  const opacity=wake.mesh.geometry.getAttribute('instanceOpacity').array;
  assert.equal(opacity.filter(v=>v>0).length,2);assert.equal(wake.mesh.instanceMatrix,positions);
 });
+
+test('showcase camera follows a sailing ship, orbits the real world and restores the original view',async()=>{
+ const THREE=await import('three'),{OrbitControls}=await import('three/addons/controls/OrbitControls.js');
+ const {createShowcaseCamera}=await import('./ship-showcase.mjs');assert.equal(typeof createShowcaseCamera,'function');
+ const camera=new THREE.PerspectiveCamera(36,1,.1,150),controls=new OrbitControls(camera,null),ship=new THREE.Group();
+ camera.position.set(13,16,18);controls.target.set(0,2.35,0);controls.update();
+ const original=camera.position.clone(),target=controls.target.clone(),rotation=camera.quaternion.clone();
+ ship.position.set(2,.1,1);ship.rotation.set(.05,.7,.03);const shipRotation=ship.quaternion.clone();
+ const view=createShowcaseCamera(camera,controls);view.update(ship,.5,0,0,1);const close=camera.position.clone();
+ const movement=new THREE.Vector3(1,0,.4);ship.position.add(movement);view.update(ship,.5,0,0,1);
+ assert.ok(camera.position.clone().sub(close).distanceTo(movement)<1e-9);
+ const position=ship.position.clone(),worldPoint=new THREE.Vector3(-4,0,2);camera.updateMatrixWorld();const before=worldPoint.clone().project(camera);
+ view.update(ship,.5,.8,-.3,1);camera.updateMatrixWorld();assert.ok(worldPoint.clone().project(camera).distanceTo(before)>.1);
+ assert.ok(ship.position.equals(position));assert.ok(ship.quaternion.equals(shipRotation));
+ view.restore();assert.ok(camera.position.equals(original));assert.ok(controls.target.equals(target));assert.ok(camera.quaternion.angleTo(rotation)<1e-7);assert.equal(controls.enabled,true);
+ controls.update();assert.ok(camera.position.distanceTo(original)<1e-9);
+});

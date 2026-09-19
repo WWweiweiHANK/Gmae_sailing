@@ -179,7 +179,7 @@ function frame(now){
  if(!active()){syncScheduler();return;}raf=requestAnimationFrame(frame);
  sailing.tick(performance.now(),isSailingActive());
  const dt=clock.tick(now,true,nativeState.settings.fps);if(!dt)return;const cpuStart=performance.now();
- const worldDt=nativeState.paused?0:dt;state.time+=worldDt;environment.advance(worldDt);if(isSailingActive())travelTime+=worldDt;const env=environment.snapshot();latestEnvironment=env;const t=state.time,from=periodPalettes[env.fromPeriod],pal=periodPalettes[env.period],mix=env.periodBlend;
+ const worldDt=nativeState.paused?0:dt;state.time+=worldDt;environment.advance(worldDt);travelTime+=worldDt;const env=environment.snapshot();latestEnvironment=env;const t=state.time,from=periodPalettes[env.fromPeriod],pal=periodPalettes[env.period],mix=env.periodBlend;
  nightMix=env.night;rainMix=env.rain;duskMix=(env.fromPeriod==='dusk'?1:0)*(1-mix)+(env.period==='dusk'?1:0)*mix;
  waveStrength.value+=(waveTarget-waveStrength.value)*(1-Math.exp(-dt*3));
  const canDolphin=env.period==='day'&&env.weather==='clear';
@@ -197,7 +197,7 @@ function frame(now){
  sun.intensity=(from.sun+(pal.sun-from.sun)*mix)*(1-env.shade*.76);hemi.intensity=(from.hemi+(pal.hemi-from.hemi)*mix)*(1-env.shade*.15);fill.intensity=1.1-nightMix*.55-duskMix*.55;
  waterTime.value=t;waterRain.value=rainMix;
  const pos=route(travelTime),next=route(travelTime+.12),heading=Math.atan2(next.x-pos.x,next.z-pos.z);const dx=Math.sin(heading),dz=Math.cos(heading);ship.position.set(pos.x,wave(pos.x,pos.z,t)+.05,pos.z);ship.rotation.set((wave(pos.x-dx*.6,pos.z-dz*.6,t)-wave(pos.x+dx*.6,pos.z+dz*.6,t))*.42,heading,(wave(pos.x+dz*.3,pos.z-dx*.3,t)-wave(pos.x-dz*.3,pos.z+dx*.3,t))*.45);flag.rotation.y=Math.sin(t*4)*.12;
- wake.update(t,worldDt,wave,travelTime,isSailingActive());showcase.update(dt);
+ wake.update(t,worldDt,wave,travelTime,!nativeState.paused);showcase.update(dt);
  birds.forEach(({g,wings,phase},i)=>{
   const mode=env.period==='night'||env.weather==='storm'?'night':env.weather==='clear'?'sunny':'rainy';if(env.stormWarning){g.userData.fade=(g.userData.fade??1)*Math.exp(-dt*1.5);g.traverse(p=>{if(p.isMesh)p.material.opacity=g.userData.fade;});g.visible=g.userData.fade>.005;}else updateGullVisibility(g,mode,i,dt);if(!g.visible)return;
   const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.15,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;

@@ -2,7 +2,7 @@ import {isTauri,invoke} from '@tauri-apps/api/core';
 import {listen} from '@tauri-apps/api/event';
 export async function connectDesktop(onState,onReset,onDiagnostics,onExit){
  const native=isTauri();
- let state={editing:!native,paused:false,visible:true,minimized:false,settings:{fps:30,wave:1,sound:false,camera:null,topmost:true}};
+ let state={editing:!native,paused:false,visible:true,minimized:false,settings:{fps:30,wave:1,sound:true,camera:null,topmost:true}};
  const update=next=>{state=next;onState(next);};
  if(native){
   await listen('pet-state',event=>update(event.payload));

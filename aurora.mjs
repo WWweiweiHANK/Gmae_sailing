@@ -79,6 +79,7 @@ export function createAurora(parent){
   lights[0].position.set(-3,3.25,.3);lights[1].position.set(3,3.5,-.6);lights[2].position.set(0,3.7,-1.8);lights.forEach(light=>group.add(light));
   return {
     waterGlow,
+    get visible(){return curtains.some(mesh=>mesh.visible&&mesh.material.uniforms.fade.value>.15);},
     update(time,elapsed,weather,start,dt){
       const stage=auroraStage(elapsed,weather==='night'?start:Infinity),blend=1-Math.exp(-dt*1.2);
       waterGlow.value+=(stage.water-waterGlow.value)*blend;

@@ -16,12 +16,13 @@ import {createShipShowcase} from './ship-showcase.mjs';
 import {createSailing,sailingConfig} from './sailing.mjs';
 import {createGameSave,GAME_SAVE_KEY} from './game-save.mjs';
 import {createColorPurchases} from './color-purchases.mjs';
+import {createBadges,createWorldEventBus,createVisualEventTracker} from './badges.mjs';
 const canvas = document.querySelector('#scene');
 function showError(text) { document.querySelector('#loading').hidden=true;const el=document.querySelector('#error');el.hidden=false;el.textContent=text; }
 start().catch(error=>{console.error(error);showError('场景未能启动，请检查 WebGL 2 / WebView2。托盘仍可退出或重置。');});
 async function start() {
 const scene=new THREE.Scene();
-let nativeState={editing:false,paused:false,visible:true,minimized:false,settings:{fps:30,wave:1,sound:false,camera:null}},bridge;
+let nativeState={editing:false,paused:false,visible:true,minimized:false,settings:{fps:30,wave:1,sound:true,camera:null}},bridge;
 let waveTarget=2.2;const waveStrength={value:waveTarget};
 const soundButton=document.querySelector('#sound'),waveSlider=document.querySelector('#wave-size');
 const ambience=createAmbientAudio(active=>{soundButton.textContent=active?'静音':'听海';soundButton.setAttribute('aria-pressed',String(active));});
@@ -30,16 +31,18 @@ const query=new URLSearchParams(location.search),scenario=qa?query.get('scenario
 const initial=scenario==='storm'?{weather:'storm'}:scenario==='aurora'?{period:'night',aurora:true}:{};
 const environment=createEnvironment(Math.random,{...initial,fixed:qa});
 const clock=createFrameClock();let timer=0,raf=0,contextLost=false;
-let savedCameraApplied=false,lastNativeSound=false,saveTimer=0;
+let savedCameraApplied=false,lastNativeSound=null,saveTimer=0;
+let badges=null,renderedNight=false;
+const worldEventBus=createWorldEventBus(),trackVisualEvents=createVisualEventTracker(worldEventBus.emitWorldEvent);
 let showcase=null,travelTime=15,pageSuspended=false,saveError='';
-const development=typeof __DEV__!=='undefined'&&__DEV__,fastSailing=development&&query.get('sailingDebug')==='fast';
+const development=typeof __DEV__!=='undefined'&&__DEV__,fastSailing=typeof __DEV__!=='undefined'&&__DEV__&&query.get('sailingDebug')==='fast';
 const store=createGameSave({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},
  {key:fastSailing?'tiny-tides-game-debug-v1':GAME_SAVE_KEY,migrateLegacy:!fastSailing,onError:message=>{saveError=message;document.querySelector('#ship-notice').textContent=message;console.warn(message);}});
 const sailing=createSailing({initial:store.read().sailingData,config:sailingConfig(development,fastSailing),onSave:sailingData=>{
- const saved=store.save({sailingData});if(saved)saveError='';if(showcase?.busy)refreshBalance();
+ badges?.advance(renderedNight);const saved=store.save({sailingData,...(badges?{badgeProgress:badges.progress()}:{})});if(saved)saveError='';if(showcase?.busy)refreshBalance();
  if(development)console.debug('[航行值]',{...sailingData,isSailingActive:isSailingActive(),debugFast:fastSailing});return saved;
 }});
-const debugPoints=fastSailing?Number(query.get('debugPoints')):0;
+const debugPoints=typeof __DEV__!=='undefined'&&__DEV__&&fastSailing?Number(query.get('debugPoints')):0;
 if(store.isNew&&Number.isSafeInteger(debugPoints)&&debugPoints>0&&debugPoints<=10000)sailing.addSailingPoints(debugPoints);
 function refreshBalance(){const points=sailing.snapshot().points,button=document.querySelector('#ship-balance');document.querySelector('#sailing-points').textContent=String(points);button.title=`航行值：${points}`;button.setAttribute('aria-label',button.title);}
 document.querySelector('#ship-balance').addEventListener('click',()=>{document.querySelector('#ship-notice').textContent=`航行值：${sailing.snapshot().points} · 正常航行一分钟积累一点`;});
@@ -151,13 +154,19 @@ bridge=await connectDesktop(showNative,()=>{if(showcase?.busy)showcase.close();e
 const customization=createShipCustomization(ship,{hull:hullMat,roof:roofMat,stripe:stripeMat},message=>{document.querySelector('#ship-notice').textContent=message;},store.read().shipCustomization,
  shipCustomization=>store.save({shipCustomization,sailingData:sailing.snapshot()}));
 const colors=createColorPurchases({store,sailing,customization});
-showcase=createShipShowcase({canvas,camera,controls,ship,customization,colors,onColorChange:refreshBalance,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
+badges=createBadges({store,customization,bus:worldEventBus,total:()=>sailing.snapshot().totalSailingSeconds,config:typeof __DEV__!=='undefined'&&__DEV__&&fastSailing?{first_voyage:30,old_sailor:120,starry_night:10}:{},onChange:()=>showcase?.refreshBadges()});
+if(typeof __DEV__!=='undefined'&&__DEV__){window.debugUnlockBadge=id=>badges.unlockBadge(id,{sourceEventId:'debug'});window.emitWorldEvent=worldEventBus.emitWorldEvent;}
+showcase=createShipShowcase({canvas,camera,controls,ship,customization,colors,badges,onColorChange:refreshBalance,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
 // Click-through windows receive no pointer events: poll only the native cursor and raycast this ship.
 let pollingPointer=false;if(bridge.native)setInterval(async()=>{if(pollingPointer||showcase.busy||nativeState.editing||!nativeState.visible||nativeState.minimized)return;pollingPointer=true;
  try{const point=await bridge.pointer();if(!showcase.busy&&!nativeState.editing)await bridge.hover(showcase.hit(...point));}catch(error){console.warn(error);}finally{pollingPointer=false;}
 },100);
 if(!bridge.native){try{const record=JSON.parse(localStorage.getItem('tiny-tides-view'));if(record){restoreView(record.camera);waveTarget=Math.max(0,Math.min(2,record.wave))*2.2;waveSlider.value=String(waveTarget/.022);document.querySelector('#wave-value').value=waveSlider.value+'%';}}catch{}}
-soundButton.addEventListener('click',()=>{if(bridge.native){void ambience.setEnabled(!ambience.enabled).then(enabled=>{if(enabled!==nativeState.settings.sound)return bridge.action('sound');}).catch(console.warn);}else void bridge.action('sound');});
+soundButton.addEventListener('click',()=>{void ambience.setEnabled(!ambience.enabled).then(enabled=>{if(enabled!==nativeState.settings.sound)return bridge.action('sound');}).catch(console.warn);});
+// Browsers may defer autoplay until a gesture; a deliberate mute must stay muted.
+function resumeDefaultAudio(event){if(nativeState.settings.sound&&!ambience.enabled&&!soundButton.contains(event.target))void ambience.setEnabled(true).catch(console.warn);}
+document.addEventListener('pointerdown',resumeDefaultAudio);
+document.addEventListener('keydown',resumeDefaultAudio);
 document.querySelector('#drag').addEventListener('pointerdown',event=>{if(event.button!==0)return;event.preventDefault();event.stopPropagation();void bridge.drag().catch(console.warn);});
 document.querySelector('#lock').addEventListener('click',()=>bridge.action('lock'));
 document.querySelector('#edit').addEventListener('click',()=>bridge.action('edit'));
@@ -174,14 +183,15 @@ document.addEventListener('freeze',suspendPage);document.addEventListener('resum
 canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();contextLost=true;syncScheduler();showError('图形上下文已暂停；恢复后自动继续。');});
 canvas.addEventListener('webglcontextrestored',()=>{contextLost=false;document.querySelector('#error').hidden=true;syncScheduler();});
 let latestEnvironment=environment.snapshot();
-function report(){return {...monitor.report(),environment:latestEnvironment,paused:!active(),camera:cameraRecord(),rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,ownedColors:store.read().ownedColors,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
+function report(){return {...monitor.report(),environment:latestEnvironment,paused:!active(),camera:cameraRecord(),audio:{requested:nativeState.settings.sound,playing:ambience.enabled,loaded:ambience.loaded},rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,ownedColors:store.read().ownedColors,ownedBadges:store.read().ownedBadges,badgeProgress:badges.progress(),seenBadgeNotifications:store.read().seenBadgeNotifications,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
 let lastAlpha=null,diagnosticAt=0,startupRecorded=false;
 if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'get_ocean_state',title:'查看桌宠状态与实测性能',description:'只读场景状态、帧率、CPU提交时间及资源数量。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:report});}
+if(typeof __DEV__!=='undefined'&&__DEV__&&fastSailing&&document.modelContext?.registerTool)document.modelContext.registerTool({name:'debug_badge_event',title:'测试存档：触发徽章事件',description:'仅独立开发存档可用；模拟体验事件或直接解锁徽章，正常存档和正式包没有此入口。',inputSchema:{type:'object',properties:{type:{type:'string'},badgeId:{type:'string'}},additionalProperties:false},execute:({type,badgeId})=>({result:badgeId?badges.unlockBadge(badgeId,{sourceEventId:'debug'}):worldEventBus.emitWorldEvent(type,{sourceEventId:'debug-event'}),ownedBadges:store.read().ownedBadges})});
 if(qa){document.body.dataset.qa='true';document.querySelector('#qa-panel').hidden=false;document.querySelector('#wallpaper').addEventListener('change',e=>{document.body.dataset.wallpaper=e.target.value;});}
 document.querySelector('#export').addEventListener('click',()=>{const data=report();void bridge.diagnostics(data);const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='tiny-tides-diagnostics.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 function frame(now){
  if(!active()){syncScheduler();return;}raf=requestAnimationFrame(frame);
- sailing.tick(performance.now(),isSailingActive());
+ sailing.tick(performance.now(),isSailingActive());badges.advance(renderedNight);
  const dt=clock.tick(now,true,nativeState.settings.fps);if(!dt)return;const cpuStart=performance.now();
  const worldDt=nativeState.paused?0:dt;state.time+=worldDt;environment.advance(worldDt);travelTime+=worldDt;const env=environment.snapshot();latestEnvironment=env;const t=state.time,from=periodPalettes[env.fromPeriod],pal=periodPalettes[env.period],mix=env.periodBlend;
  nightMix=env.night;rainMix=env.rain;duskMix=(env.fromPeriod==='dusk'?1:0)*(1-mix)+(env.period==='dusk'?1:0)*mix;
@@ -215,6 +225,8 @@ function frame(now){
  ripples.forEach(r=>{const a=(t*.65+r.userData.phase)%1;r.visible=rain.visible;if(!r.visible)return;r.scale.setScalar(.2+a*1.5);r.material.opacity=rainMix*(1-a)*.4;r.position.y=.025+wave(r.position.x,r.position.z,t);});
  ambience.setEnvironment({rain:rainMix,night:nightMix,gulls:!env.stormWarning&&env.period!=='night'&&env.weather==='clear'});ambience.tick();
  controls.dampingFactor=1-Math.exp(-dt*7.6);if(!showcase.busy)controls.update();renderer.render(scene,camera);
+ renderedNight=nightMix>.8;
+ if(!nativeState.paused)trackVisualEvents({...effects.visibleEvents(t,wave),storm:env.weather==='storm'&&rain.visible&&rainMix>.75,sunset:env.period==='dusk'&&duskMix>.9&&env.shade<.5});
  monitor.sample(now,performance.now()-cpuStart,env,buffer);
  if(bridge.native&&!startupRecorded&&monitor.report().last){startupRecorded=true;void bridge.diagnostics({...report(),native:true,windowState:nativeState}).catch(console.warn);}
  if(qa&&now-diagnosticAt>5000){diagnosticAt=now;const gl=renderer.getContext(),pixel=new Uint8Array(4);lastAlpha=[];for(const [x,y] of [[0,0],[buffer.width-1,0],[0,buffer.height-1],[buffer.width-1,buffer.height-1]]){gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);lastAlpha.push([...pixel]);}document.querySelector('#diagnostics').textContent=JSON.stringify(report(),null,2);}

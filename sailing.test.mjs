@@ -61,7 +61,7 @@ test('unified save migrates the old ship, keeps remainder and never loses appear
  store.save({sailingData:{points:1,accumulatedSeconds:30,totalSailingSeconds:90}});
  const reloaded=save.createGameSave(disk);assert.equal(reloaded.read().sailingData.accumulatedSeconds,30);assert.equal(reloaded.read().shipCustomization.hullColor,'#a9d5bd');
  reloaded.save({shipCustomization:{...reloaded.read().shipCustomization,name:'远山号'}});assert.equal(save.createGameSave(disk).read().sailingData.points,1);
- assert.ok(disk.getItem('tiny-tides-ship-v1'));assert.equal(JSON.parse(disk.getItem('tiny-tides-game-v1')).version,2);
+ assert.ok(disk.getItem('tiny-tides-ship-v1'));assert.equal(JSON.parse(disk.getItem('tiny-tides-game-v1')).version,3);
 });
 test('invalid save numbers are rejected; storage failures and newer versions are not silently overwritten',()=>{
  assert.equal(typeof save.createGameSave,'function');const disk=storage();

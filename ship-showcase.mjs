@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {SHIP_BADGES,drawBadge,shipName} from './ship-customization.mjs';
+import {drawBadge,shipName} from './ship-customization.mjs';
 import {colorCatalog,COLOR_PARTS} from './color-catalog.mjs';
 
 export function createShowcaseCamera(camera,controls){
@@ -22,14 +22,14 @@ export function createShowcaseCamera(camera,controls){
  }};
 }
 
-export function createShipShowcase({canvas,camera,controls,ship,customization,colors,onColorChange,onEnter,onLeave}){
+export function createShipShowcase({canvas,camera,controls,ship,customization,colors,badges,onColorChange,onEnter,onLeave}){
  const dialog=document.querySelector('#my-ship'),panel=document.querySelector('#ship-panel');
  const notice=document.querySelector('#ship-notice'),nameInput=document.querySelector('#ship-name');
  const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
  let phase='sailing',progress=0,view=null,yaw=0,pitch=0,vYaw=0,vPitch=0,drag=null,pressed=null,previousFocus=null;
  const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
  const tabs=[...dialog.querySelectorAll('[role=tab]')];
- function tab(id){dismissPurchase();for(const button of tabs){const active=button.dataset.tab===id;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;document.querySelector('#ship-'+button.dataset.tab).hidden=!active;}}
+ function tab(id){if(id!=='badges')acknowledgeBadges();dismissPurchase();for(const button of tabs){const active=button.dataset.tab===id;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;document.querySelector('#ship-'+button.dataset.tab).hidden=!active;}if(id==='badges'){refreshBadges();acknowledgeBadges();}}
  tabs.forEach((button,i)=>{button.addEventListener('click',()=>tab(button.dataset.tab));button.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const next=tabs[(i+(e.key==='ArrowRight'?1:2))%3];tab(next.dataset.tab);next.focus();}});});
  let selectedPart='hullColor',pending=null,noticeTimer=0;
  const colorButtons=new Map(),partButtons=new Map(),confirm=document.querySelector('#color-confirm'),hint=document.querySelector('#color-hint');
@@ -56,22 +56,40 @@ export function createShipShowcase({canvas,camera,controls,ship,customization,co
  }
  document.querySelector('#color-cancel').addEventListener('click',()=>{const id=pending?.color.id;dismissPurchase();if(id)colorButtons.get(id).focus();});
  document.querySelector('#color-unlock').addEventListener('click',()=>{if(!pending)return;const {color,part}=pending;finishColor(colors.purchase(color.id,part),color);});
- for(const badge of [{id:null,name:'不佩戴',unlocked:true},...SHIP_BADGES]){
-  const button=document.createElement('button');button.type='button';button.className='ship-badge';button.dataset.badge=badge.id??'';button.disabled=!badge.unlocked;
-  if(!badge.unlocked){button.textContent='？';button.setAttribute('aria-label','尚未解锁');}
-  else{if(badge.id){const icon=document.createElement('canvas');icon.width=80;icon.height=80;icon.setAttribute('aria-hidden','true');drawBadge(icon.getContext('2d'),badge.id,40,40,72);button.append(icon);}const label=document.createElement('span');label.textContent=badge.name;button.append(label);button.addEventListener('click',()=>{customization.update({equippedBadge:badge.id});refresh();});}
-  document.querySelector('#ship-badge-options').append(button);
+ let selectedBadge=null;
+ const badgeButtons=new Map(),badgePanel=document.querySelector('#ship-badges'),badgeDetail=document.querySelector('#badge-detail');
+ function acknowledgeBadges(){if(!badgePanel.hidden)badges.markSeen(badges.views().filter(b=>b.owned).map(b=>b.id));}
+ for(const item of [{id:null},...badges.views()]){
+  const button=document.createElement('button');button.type='button';button.className='ship-badge';
+  const icon=document.createElement('canvas');icon.width=80;icon.height=80;icon.setAttribute('aria-hidden','true');
+  const label=document.createElement('span'),status=document.createElement('small');button.append(icon,label,status);
+  button.addEventListener('click',()=>{selectedBadge=item.id;const view=badges.views().find(b=>b.id===item.id);
+   if(item.id===null||view.owned){const result=badges.equip(item.id);if(result==='save-failed')feedback('未能保存徽章，请稍后重试。');else{badges.markSeen(item.id?[item.id]:[]);feedback(item.id?'已佩戴这枚航行印记':'已取下徽章');}}
+   refreshBadges();
+  });document.querySelector('#ship-badge-options').append(button);badgeButtons.set(item.id,{button,icon,label,status,drawn:null});
+ }
+ function refreshBadges(){
+  const views=[{id:null,name:'无徽章',owned:true,icon:null},...badges.views()];
+  for(const view of views){const {button,icon,label,status}=badgeButtons.get(view.id),current=customization.data.equippedBadge===view.id;
+   label.textContent=view.name;status.textContent=current?'已佩戴':view.isNew?'NEW':view.owned?'已拥有':view.icon?'未解锁':'尚未发现';status.className=view.isNew&&!current?'badge-new':'';
+   button.setAttribute('aria-pressed',String(current));button.setAttribute('aria-label',view.name+' · '+status.textContent);button.classList.toggle('badge-locked',!view.owned);
+   icon.hidden=!view.icon;if(view.icon&&badgeButtons.get(view.id).drawn!==view.icon){const ctx=icon.getContext('2d');ctx.clearRect(0,0,80,80);drawBadge(ctx,view.icon,40,40,72);badgeButtons.get(view.id).drawn=view.icon;}
+  }
+  const view=views.find(b=>b.id===selectedBadge);
+  if(!selectedBadge){badgeDetail.textContent='徽章来自航行中的相遇，不消耗航行值。';return;}
+  if(!view.owned){badgeDetail.textContent=view.icon?(view.night?'星光下累计航行':'累计航行')+' '+Math.floor(view.progress/60)+' / '+Math.ceil(view.required/60)+' 分钟':'尚未发现';return;}
+  badgeDetail.textContent=view.name+' · '+(view.unlockedAt?new Date(view.unlockedAt).toLocaleDateString()+' 获得':'旧版保留 · 日期未记录')+'\n'+view.description;
  }
  document.querySelector('#ship-name-form').addEventListener('submit',e=>{e.preventDefault();const name=shipName(nameInput.value);if(!name){notice.textContent='给小船取一个名字吧。';nameInput.focus();return;}
   customization.update({name});if(name!==nameInput.value.trim())notice.textContent='船名已按铭牌宽度缩短并保存。';nameInput.value=name;refresh();});
  function refresh(){
   for(const [part,button] of partButtons)button.setAttribute('aria-pressed',String(part===selectedPart));
   for(const color of colorCatalog){const button=colorButtons.get(color.id),current=customization.data[selectedPart]===color.value,status=current?'✓ 当前':colors.owns(color.id)?'已拥有':`≋ ${color.price}`;button.querySelector('small').textContent=status;button.setAttribute('aria-pressed',String(current));button.setAttribute('aria-label',`${color.name} · ${current?'当前':colors.owns(color.id)?'已拥有':color.price+' 航行值'}`);}
-  dialog.querySelectorAll('[data-badge]').forEach(b=>b.setAttribute('aria-pressed',String((customization.data.equippedBadge??'')===b.dataset.badge)));document.querySelector('#ship-title-name').textContent=customization.data.name;
+  refreshBadges();document.querySelector('#ship-title-name').textContent=customization.data.name;
  }
  function hit(x,y){if(x<0||y<0||x>innerWidth||y>innerHeight)return false;pointer.set(x/innerWidth*2-1,1-y/innerHeight*2);ship.updateWorldMatrix(true,true);camera.updateMatrixWorld();ray.setFromCamera(pointer,camera);return ray.intersectObject(ship,true).length>0;}
  function open(){if(phase!=='sailing')return;previousFocus=document.activeElement;yaw=0;pitch=0;vYaw=0;vPitch=0;phase='opening';progress=0;view=createShowcaseCamera(camera,controls);document.body.dataset.showcase='true';dialog.hidden=false;dialog.classList.remove('leaving');nameInput.value=customization.data.name;notice.textContent='外观与航行进度会自动保存在本机';onEnter();hint.textContent=colors.takeHint()?'航行会慢慢积累航行值，可以用来解锁新的颜色。':'解锁一次，船体、船顶和装饰线都可使用。';tab('colors');refresh();document.querySelector('#ship-close').focus();}
- function close(){if(phase==='sailing'||phase==='closing')return;dismissPurchase();clearTimeout(noticeTimer);phase='closing';drag=null;pressed=null;vYaw=0;vPitch=0;dialog.classList.add('leaving');}
+ function close(){if(phase==='sailing'||phase==='closing')return;acknowledgeBadges();dismissPurchase();clearTimeout(noticeTimer);phase='closing';drag=null;pressed=null;vYaw=0;vPitch=0;dialog.classList.add('leaving');}
  document.querySelector('#ship-close').addEventListener('click',close);
  document.addEventListener('keydown',e=>{
   if(phase==='sailing'){if(document.activeElement===canvas&&(e.key==='Enter'||e.key===' ')){e.preventDefault();open();}return;}
@@ -92,7 +110,7 @@ export function createShipShowcase({canvas,camera,controls,ship,customization,co
  for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>{drag=null;pressed=null;vYaw=0;vPitch=0;});
  window.addEventListener('blur',()=>{drag=null;pressed=null;vYaw=0;vPitch=0;});
  refresh();
- return {open,close,hit,get busy(){return phase!=='sailing';},get inspecting(){return phase==='open';},get blend(){return progress*progress*(3-2*progress);},snapshot:()=>({phase,progress,yaw,pitch}),
+ return {open,close,hit,refreshBadges(){if(phase!=='sailing'&&!badgePanel.hidden)refreshBadges();},get busy(){return phase!=='sailing';},get inspecting(){return phase==='open';},get blend(){return progress*progress*(3-2*progress);},snapshot:()=>({phase,progress,yaw,pitch}),
   update(dt){
    if(phase==='sailing')return;
    const step=dt/(reduceMotion?.12:.85);progress=THREE.MathUtils.clamp(progress+(phase==='closing'?-step:step),0,1);

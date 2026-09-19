@@ -1,11 +1,7 @@
 import * as THREE from 'three';
 import {colorCatalog} from './color-catalog.mjs';
-export const SHIP_BADGES=[
- {id:'dolphin',name:'海豚',unlocked:true},{id:'whale',name:'鲸鱼',unlocked:true},
- {id:'aurora',name:'极光',unlocked:true},{id:'moon',name:'月亮',unlocked:false},
- {id:'star',name:'星星',unlocked:false},{id:'wave',name:'海浪',unlocked:false}
-];
-export const DEFAULT_SHIP={name:'小雨号',hullColor:'#fffcf2',roofColor:'#284c65',stripeColor:'#284c65',equippedBadge:'dolphin'};
+import {badgeId,badgeCatalog} from './badges.mjs';
+export const DEFAULT_SHIP={name:'小雨号',hullColor:'#fffcf2',roofColor:'#284c65',stripeColor:'#284c65',equippedBadge:null};
 export const SHIP_STORAGE_KEY='tiny-tides-ship-v1';
 
 // ASCII occupies one unit; CJK and other wide characters occupy two (six CJK / twelve ASCII).
@@ -22,11 +18,12 @@ export function sanitizeShip(value){
  const data=value&&typeof value==='object'?value:{};
  const result={...DEFAULT_SHIP,name:shipName(data.name)||DEFAULT_SHIP.name};
  for(const key of ['hullColor','roofColor','stripeColor'])if(colorCatalog.some(color=>color.value===data[key]))result[key]=data[key];
- if(data.equippedBadge===null||SHIP_BADGES.some(b=>b.id===data.equippedBadge&&b.unlocked))result.equippedBadge=data.equippedBadge;
+ result.equippedBadge=badgeId(data.equippedBadge);
  return result;
 }
 
 export function drawBadge(ctx,id,x,y,size){
+ id=badgeCatalog.find(b=>b.id===id)?.icon??id;
  ctx.save();ctx.translate(x,y);ctx.scale(size/100,size/100);
  ctx.fillStyle='#e5f3ec';ctx.beginPath();ctx.arc(0,0,45,0,Math.PI*2);ctx.fill();
  ctx.strokeStyle='#497989';ctx.fillStyle='#497989';ctx.lineWidth=5;ctx.lineCap='round';ctx.lineJoin='round';
@@ -35,8 +32,22 @@ export function drawBadge(ctx,id,x,y,size){
  }else if(id==='whale'){
   ctx.beginPath();ctx.moveTo(-29,1);ctx.bezierCurveTo(-27,-30,22,-24,19,6);ctx.lineTo(32,-1);ctx.lineTo(35,-18);ctx.lineTo(22,-12);ctx.lineTo(30,-25);ctx.lineTo(40,-21);ctx.lineTo(35,6);ctx.bezierCurveTo(16,34,-26,30,-29,1);ctx.fill();
   ctx.beginPath();ctx.moveTo(-11,-23);ctx.lineTo(-11,-35);ctx.moveTo(-11,-29);ctx.lineTo(-20,-34);ctx.stroke();
- }else{
+ }else if(id==='dolphin'){
   ctx.beginPath();ctx.moveTo(-33,11);ctx.bezierCurveTo(-20,-10,-5,-26,10,-12);ctx.lineTo(10,-28);ctx.lineTo(22,-11);ctx.bezierCurveTo(26,-3,29,6,35,7);ctx.lineTo(26,14);ctx.lineTo(35,22);ctx.lineTo(19,19);ctx.bezierCurveTo(6,-8,-13,-2,-26,16);ctx.lineTo(-33,11);ctx.fill();
+ }else if(id==='sunset'){
+  ctx.fillStyle='#c69b63';ctx.beginPath();ctx.arc(0,1,19,Math.PI,0);ctx.fill();ctx.beginPath();ctx.moveTo(-29,8);ctx.lineTo(29,8);ctx.moveTo(-20,20);ctx.lineTo(20,20);ctx.stroke();
+ }else if(id==='storm'){
+  ctx.beginPath();ctx.moveTo(-25,-5);ctx.bezierCurveTo(-32,-25,-4,-30,2,-18);ctx.bezierCurveTo(28,-28,39,1,20,5);ctx.lineTo(-22,5);ctx.stroke();ctx.beginPath();ctx.moveTo(3,6);ctx.lineTo(-9,20);ctx.lineTo(5,19);ctx.lineTo(-3,33);ctx.stroke();
+ }else if(id==='stars'){
+  for(const [x,y,r] of [[-13,-7,16],[20,-20,7],[16,21,9]]){ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r*.32,y-r*.32);ctx.lineTo(x+r,y);ctx.lineTo(x+r*.32,y+r*.32);ctx.lineTo(x,y+r);ctx.lineTo(x-r*.32,y+r*.32);ctx.lineTo(x-r,y);ctx.lineTo(x-r*.32,y-r*.32);ctx.closePath();ctx.fill();}
+ }else if(id==='anchor'){
+  ctx.beginPath();ctx.arc(0,-23,7,0,Math.PI*2);ctx.moveTo(0,-16);ctx.lineTo(0,28);ctx.moveTo(-15,-3);ctx.lineTo(15,-3);ctx.moveTo(-28,5);ctx.quadraticCurveTo(-25,27,0,28);ctx.quadraticCurveTo(25,27,28,5);ctx.moveTo(-28,5);ctx.lineTo(-32,17);ctx.moveTo(28,5);ctx.lineTo(32,17);ctx.stroke();
+ }else if(id==='sail'){
+  ctx.beginPath();ctx.moveTo(-26,17);ctx.lineTo(27,17);ctx.lineTo(17,29);ctx.lineTo(-16,29);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(1,10);ctx.lineTo(1,-29);ctx.lineTo(-22,10);ctx.closePath();ctx.stroke();ctx.beginPath();ctx.moveTo(9,-20);ctx.lineTo(27,10);ctx.lineTo(9,10);ctx.closePath();ctx.fill();
+ }else if(id==='glass'){
+  ctx.fillStyle='#80b9aa';ctx.beginPath();ctx.moveTo(-22,13);ctx.lineTo(-9,-28);ctx.lineTo(22,-15);ctx.lineTo(28,14);ctx.lineTo(2,29);ctx.closePath();ctx.fill();ctx.stroke();
+ }else{
+  ctx.beginPath();ctx.arc(0,0,28,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(9,-20);ctx.lineTo(3,7);ctx.lineTo(-9,20);ctx.lineTo(-3,-7);ctx.closePath();ctx.fill();
  }
  ctx.restore();
 }
@@ -55,6 +66,7 @@ export function createShipCustomization(ship,{hull,roof,stripe},onNotice,saved,o
  const atlas=document.createElement('canvas');atlas.width=768;atlas.height=160;
  const ctx=atlas.getContext('2d'),texture=new THREE.CanvasTexture(atlas);texture.colorSpace=THREE.SRGBColorSpace;
  const material=new THREE.MeshStandardMaterial({map:texture,transparent:true,roughness:1,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
+ let displayedBadge=data.equippedBadge,fadePhase='idle';
  const geometry=new THREE.PlaneGeometry(1.02,.205);
  for(const side of [-1,1]){
   const label=new THREE.Mesh(geometry,material);label.name='ship-name-and-badge';
@@ -63,14 +75,17 @@ export function createShipCustomization(ship,{hull,roof,stripe},onNotice,saved,o
  function apply(){
   ctx.clearRect(0,0,768,160);ctx.fillStyle='#fff9ec';ctx.beginPath();ctx.roundRect(4,8,760,144,28);ctx.fill();
   ctx.strokeStyle='#728a8a';ctx.lineWidth=3;ctx.stroke();
-  const offset=data.equippedBadge?154:30;
-  if(data.equippedBadge)drawBadge(ctx,data.equippedBadge,82,80,125);
+  const offset=displayedBadge?154:30;
+  if(displayedBadge)drawBadge(ctx,displayedBadge,82,80,125);
   let font=84;ctx.font=`600 ${font}px "Microsoft YaHei", sans-serif`;
   while(ctx.measureText(data.name).width>724-offset&&font>20){font--;ctx.font=`600 ${font}px "Microsoft YaHei", sans-serif`;}
   ctx.fillStyle='#294858';ctx.textBaseline='middle';ctx.textAlign='center';ctx.fillText(data.name,(offset+738)/2,82);texture.needsUpdate=true;
  }
  apply();
- return {data,texture,animate:transition.update,update(patch,{save=true}={}){const oldName=data.name,oldBadge=data.equippedBadge;Object.assign(data,sanitizeShip({...data,...patch}));transition.set(data);if(oldName!==data.name||oldBadge!==data.equippedBadge)apply();
+ return {data,texture,animate(dt){transition.update(dt);
+  if(fadePhase==='out'){material.opacity=Math.max(0,material.opacity-dt/.15);if(material.opacity===0){displayedBadge=data.equippedBadge;apply();fadePhase='in';}}
+  else if(fadePhase==='in'){material.opacity=Math.min(1,material.opacity+dt/.15);if(material.opacity===1)fadePhase='idle';}
+ },update(patch,{save=true}={}){const oldName=data.name,oldBadge=data.equippedBadge;Object.assign(data,sanitizeShip({...data,...patch}));transition.set(data);if(oldBadge!==data.equippedBadge)fadePhase='out';if(oldName!==data.name)apply();
   if(save)onNotice(onSave(data)?'已保存在本机':'外观已应用，但本机保存失败；刷新后可能丢失。');
  }};
 }

@@ -25,7 +25,7 @@ impl Default for Settings {
             camera: None,
             topmost: true,
             fps: 30,
-            sound: false,
+            sound: true,
             wave: 1.0,
         }
     }

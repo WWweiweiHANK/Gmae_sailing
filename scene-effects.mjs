@@ -49,6 +49,7 @@ export function createVoyageEffects(scene){
   let flashAge=10;
   return {
     waterGlow:aurora.waterGlow,
+    visibleEvents(time,wave){return {aurora:aurora.visible,dolphin:dolphins.some(g=>g.visible&&g.position.y>wave(g.position.x,g.position.z,time))};},
     lightning(){flashAge=0;bolt.position.x=(Math.random()-.5)*2.5;},
     update({time,elapsed,weather,events,nightMix,dt,wave,auroraWeather=weather,auroraElapsed=elapsed}){
       aurora.update(time,auroraElapsed,auroraWeather,events.auroraAt,dt);

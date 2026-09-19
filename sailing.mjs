@@ -29,6 +29,11 @@ export function createSailing({initial,config=sailingConfig(),onSave=()=>true}={
  const canAffordSailingPoints=amount=>validAmount(amount)&&data.points>=amount;
  return {tick,snapshot,flush,canAffordSailingPoints,
   addSailingPoints(amount){if(!validAmount(amount)||!Number.isSafeInteger(data.points+amount))return false;data.points+=amount;flush();return true;},
-  spendSailingPoints(amount){if(!canAffordSailingPoints(amount))return false;data.points-=amount;flush();return true;}
+  spendSailingPoints(amount,persist=onSave){
+   if(!canAffordSailingPoints(amount))return false;
+   const next={...data,points:data.points-amount};
+   // Purchases can save balance, ownership and appearance in one write before committing the debit.
+   if(persist(next)===false)return false;data.points=next.points;unsavedSeconds=0;return true;
+  }
  };
 }

@@ -1,9 +1,5 @@
 import * as THREE from 'three';
-
-export const SHIP_COLORS=[
- ['奶油白','#fffcf2'],['海军蓝','#284c65'],['天空蓝','#83bfd6'],['薄荷绿','#a9d5bd'],
- ['珊瑚橙','#e99a7f'],['淡黄色','#eddb9b'],['灰蓝','#829ba8'],['墨绿色','#42685f']
-];
+import {colorCatalog} from './color-catalog.mjs';
 export const SHIP_BADGES=[
  {id:'dolphin',name:'海豚',unlocked:true},{id:'whale',name:'鲸鱼',unlocked:true},
  {id:'aurora',name:'极光',unlocked:true},{id:'moon',name:'月亮',unlocked:false},
@@ -25,7 +21,7 @@ export function shipName(value){
 export function sanitizeShip(value){
  const data=value&&typeof value==='object'?value:{};
  const result={...DEFAULT_SHIP,name:shipName(data.name)||DEFAULT_SHIP.name};
- for(const key of ['hullColor','roofColor','stripeColor'])if(SHIP_COLORS.some(([,color])=>color===data[key]))result[key]=data[key];
+ for(const key of ['hullColor','roofColor','stripeColor'])if(colorCatalog.some(color=>color.value===data[key]))result[key]=data[key];
  if(data.equippedBadge===null||SHIP_BADGES.some(b=>b.id===data.equippedBadge&&b.unlocked))result.equippedBadge=data.equippedBadge;
  return result;
 }
@@ -45,8 +41,16 @@ export function drawBadge(ctx,id,x,y,size){
  ctx.restore();
 }
 
+export function createShipColorTransition(materials,initial){
+ let elapsed=.3;const parts=Object.entries(materials).map(([key,material])=>({key,material,from:new THREE.Color(initial[key]),to:new THREE.Color(initial[key])}));
+ for(const part of parts)part.material.color.copy(part.to);
+ return {set(data){elapsed=0;for(const part of parts){part.from.copy(part.material.color);part.to.set(data[part.key]);}},
+  update(dt){if(elapsed>=.3)return;elapsed=Math.min(.3,elapsed+dt);const t=elapsed/.3,blend=t*t*(3-2*t);for(const part of parts){if(elapsed===.3)part.material.color.copy(part.to);else part.material.color.lerpColors(part.from,part.to,blend);}}
+ };
+}
 export function createShipCustomization(ship,{hull,roof,stripe},onNotice,saved,onSave){
  const data=sanitizeShip(saved);
+ const transition=createShipColorTransition({hullColor:hull,roofColor:roof,stripeColor:stripe},data);
  // One atlas for both sides, redrawn in place; edits never allocate another GPU texture.
  const atlas=document.createElement('canvas');atlas.width=768;atlas.height=160;
  const ctx=atlas.getContext('2d'),texture=new THREE.CanvasTexture(atlas);texture.colorSpace=THREE.SRGBColorSpace;
@@ -57,7 +61,6 @@ export function createShipCustomization(ship,{hull,roof,stripe},onNotice,saved,o
   label.position.set(side*.656,.265,-.12);label.rotation.y=side*Math.PI/2;ship.add(label);
  }
  function apply(){
-  hull.color.set(data.hullColor);roof.color.set(data.roofColor);stripe.color.set(data.stripeColor);
   ctx.clearRect(0,0,768,160);ctx.fillStyle='#fff9ec';ctx.beginPath();ctx.roundRect(4,8,760,144,28);ctx.fill();
   ctx.strokeStyle='#728a8a';ctx.lineWidth=3;ctx.stroke();
   const offset=data.equippedBadge?154:30;
@@ -67,7 +70,7 @@ export function createShipCustomization(ship,{hull,roof,stripe},onNotice,saved,o
   ctx.fillStyle='#294858';ctx.textBaseline='middle';ctx.textAlign='center';ctx.fillText(data.name,(offset+738)/2,82);texture.needsUpdate=true;
  }
  apply();
- return {data,texture,update(patch){Object.assign(data,sanitizeShip({...data,...patch}));apply();
-  onNotice(onSave(data)?'已保存在本机':'外观已应用，但本机保存失败；刷新后可能丢失。');
+ return {data,texture,animate:transition.update,update(patch,{save=true}={}){const oldName=data.name,oldBadge=data.equippedBadge;Object.assign(data,sanitizeShip({...data,...patch}));transition.set(data);if(oldName!==data.name||oldBadge!==data.equippedBadge)apply();
+  if(save)onNotice(onSave(data)?'已保存在本机':'外观已应用，但本机保存失败；刷新后可能丢失。');
  }};
 }

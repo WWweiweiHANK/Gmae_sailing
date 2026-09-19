@@ -15,6 +15,7 @@ import {createShipCustomization} from './ship-customization.mjs';
 import {createShipShowcase} from './ship-showcase.mjs';
 import {createSailing,sailingConfig} from './sailing.mjs';
 import {createGameSave,GAME_SAVE_KEY} from './game-save.mjs';
+import {createColorPurchases} from './color-purchases.mjs';
 const canvas = document.querySelector('#scene');
 function showError(text) { document.querySelector('#loading').hidden=true;const el=document.querySelector('#error');el.hidden=false;el.textContent=text; }
 start().catch(error=>{console.error(error);showError('场景未能启动，请检查 WebGL 2 / WebView2。托盘仍可退出或重置。');});
@@ -33,11 +34,13 @@ let savedCameraApplied=false,lastNativeSound=false,saveTimer=0;
 let showcase=null,travelTime=15,pageSuspended=false,saveError='';
 const development=typeof __DEV__!=='undefined'&&__DEV__,fastSailing=development&&query.get('sailingDebug')==='fast';
 const store=createGameSave({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},
- {key:fastSailing?'tiny-tides-game-debug-v1':GAME_SAVE_KEY,onError:message=>{saveError=message;document.querySelector('#ship-notice').textContent=message;console.warn(message);}});
+ {key:fastSailing?'tiny-tides-game-debug-v1':GAME_SAVE_KEY,migrateLegacy:!fastSailing,onError:message=>{saveError=message;document.querySelector('#ship-notice').textContent=message;console.warn(message);}});
 const sailing=createSailing({initial:store.read().sailingData,config:sailingConfig(development,fastSailing),onSave:sailingData=>{
  const saved=store.save({sailingData});if(saved)saveError='';if(showcase?.busy)refreshBalance();
  if(development)console.debug('[航行值]',{...sailingData,isSailingActive:isSailingActive(),debugFast:fastSailing});return saved;
 }});
+const debugPoints=fastSailing?Number(query.get('debugPoints')):0;
+if(store.isNew&&Number.isSafeInteger(debugPoints)&&debugPoints>0&&debugPoints<=10000)sailing.addSailingPoints(debugPoints);
 function refreshBalance(){const points=sailing.snapshot().points,button=document.querySelector('#ship-balance');document.querySelector('#sailing-points').textContent=String(points);button.title=`航行值：${points}`;button.setAttribute('aria-label',button.title);}
 document.querySelector('#ship-balance').addEventListener('click',()=>{document.querySelector('#ship-notice').textContent=`航行值：${sailing.snapshot().points} · 正常航行一分钟积累一点`;});
 const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,premultipliedAlpha:true,powerPreference:'low-power'});
@@ -147,7 +150,8 @@ function showNative(next){const oldFps=nativeState.settings.fps,oldWave=nativeSt
 bridge=await connectDesktop(showNative,()=>{if(showcase?.busy)showcase.close();else{resetView();saveView();}},()=>report(),()=>{pageSuspended=true;syncScheduler();sailing.flush();});document.body.dataset.native=String(bridge.native);
 const customization=createShipCustomization(ship,{hull:hullMat,roof:roofMat,stripe:stripeMat},message=>{document.querySelector('#ship-notice').textContent=message;},store.read().shipCustomization,
  shipCustomization=>store.save({shipCustomization,sailingData:sailing.snapshot()}));
-showcase=createShipShowcase({canvas,camera,controls,ship,customization,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
+const colors=createColorPurchases({store,sailing,customization});
+showcase=createShipShowcase({canvas,camera,controls,ship,customization,colors,onColorChange:refreshBalance,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
 // Click-through windows receive no pointer events: poll only the native cursor and raycast this ship.
 let pollingPointer=false;if(bridge.native)setInterval(async()=>{if(pollingPointer||showcase.busy||nativeState.editing||!nativeState.visible||nativeState.minimized)return;pollingPointer=true;
  try{const point=await bridge.pointer();if(!showcase.busy&&!nativeState.editing)await bridge.hover(showcase.hit(...point));}catch(error){console.warn(error);}finally{pollingPointer=false;}
@@ -170,7 +174,7 @@ document.addEventListener('freeze',suspendPage);document.addEventListener('resum
 canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();contextLost=true;syncScheduler();showError('图形上下文已暂停；恢复后自动继续。');});
 canvas.addEventListener('webglcontextrestored',()=>{contextLost=false;document.querySelector('#error').hidden=true;syncScheduler();});
 let latestEnvironment=environment.snapshot();
-function report(){return {...monitor.report(),environment:latestEnvironment,paused:!active(),camera:cameraRecord(),rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
+function report(){return {...monitor.report(),environment:latestEnvironment,paused:!active(),camera:cameraRecord(),rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,ownedColors:store.read().ownedColors,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
 let lastAlpha=null,diagnosticAt=0,startupRecorded=false;
 if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'get_ocean_state',title:'查看桌宠状态与实测性能',description:'只读场景状态、帧率、CPU提交时间及资源数量。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:report});}
 if(qa){document.body.dataset.qa='true';document.querySelector('#qa-panel').hidden=false;document.querySelector('#wallpaper').addEventListener('change',e=>{document.body.dataset.wallpaper=e.target.value;});}
@@ -197,7 +201,7 @@ function frame(now){
  sun.intensity=(from.sun+(pal.sun-from.sun)*mix)*(1-env.shade*.76);hemi.intensity=(from.hemi+(pal.hemi-from.hemi)*mix)*(1-env.shade*.15);fill.intensity=1.1-nightMix*.55-duskMix*.55;
  waterTime.value=t;waterRain.value=rainMix;
  const pos=route(travelTime),next=route(travelTime+.12),heading=Math.atan2(next.x-pos.x,next.z-pos.z);const dx=Math.sin(heading),dz=Math.cos(heading);ship.position.set(pos.x,wave(pos.x,pos.z,t)+.05,pos.z);ship.rotation.set((wave(pos.x-dx*.6,pos.z-dz*.6,t)-wave(pos.x+dx*.6,pos.z+dz*.6,t))*.42,heading,(wave(pos.x+dz*.3,pos.z-dx*.3,t)-wave(pos.x-dz*.3,pos.z+dx*.3,t))*.45);flag.rotation.y=Math.sin(t*4)*.12;
- wake.update(t,worldDt,wave,travelTime,!nativeState.paused);showcase.update(dt);
+ wake.update(t,worldDt,wave,travelTime,!nativeState.paused);showcase.update(dt);customization.animate(dt);
  birds.forEach(({g,wings,phase},i)=>{
   const mode=env.period==='night'||env.weather==='storm'?'night':env.weather==='clear'?'sunny':'rainy';if(env.stormWarning){g.userData.fade=(g.userData.fade??1)*Math.exp(-dt*1.5);g.traverse(p=>{if(p.isMesh)p.material.opacity=g.userData.fade;});g.visible=g.userData.fade>.005;}else updateGullVisibility(g,mode,i,dt);if(!g.visible)return;
   const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.15,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;

@@ -12,7 +12,7 @@ export function createEnvironment(random=Math.random,initial={}){
  let auroraAt=Infinity,eligible=false;
  const choose=()=>{const choices=Object.entries(C.transitions[weather]).filter(([key])=>key!=='storm'||time-lastStorm>=C.stormCooldown);let x=random()*choices.reduce((s,[,w])=>s+w,0);for(const [key,weight] of choices){x-=weight;if(x<0)return key;}return choices.at(-1)[0];};
  let nextWeather=choose();if(initial.fixed){periodDue=Infinity;weatherDue=Infinity;}
- function updateAurora(){const suitable=period==='night'&&(weather==='clear'||weather==='overcast');if(suitable&&!eligible)auroraAt=random()<C.auroraChance?time+range(C.auroraDelay):Infinity;if(!suitable)auroraAt=Infinity;eligible=suitable;}
+ function updateAurora(){const suitable=!initial.disableAurora&&period==='night'&&(weather==='clear'||weather==='overcast');if(suitable&&!eligible)auroraAt=random()<C.auroraChance?time+range(C.auroraDelay):Infinity;if(!suitable)auroraAt=Infinity;eligible=suitable;}
  updateAurora();if(initial.aurora)auroraAt=0;
  function snapshot(){const p=ease((time-periodAt)/periodTransition),w=ease((time-weatherAt)/weatherTransition);return {
   worldTime:time,period,fromPeriod,periodBlend:p,weather,nextWeather,weatherAge:time-weatherAt,

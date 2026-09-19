@@ -21,7 +21,7 @@ export function sanitizeBadges(records){
 }
 export function sanitizeBadgeProgress(value){return {nightSailingSeconds:Number.isFinite(value?.nightSailingSeconds)&&value.nightSailingSeconds>=0?value.nightSailingSeconds:0};}
 export function createWorldEventBus(){
- const listeners=new Set(),allowed=new Set([...badgeCatalog.filter(b=>b.unlockType==='event').map(b=>b.unlockCondition),'sailing_milestone']);
+ const listeners=new Set(),allowed=new Set([...badgeCatalog.filter(b=>b.unlockType==='event').map(b=>b.unlockCondition),'sailing_milestone','encounter_seen','encounter_completed','encounter_interrupted']);
  return {subscribe(fn){listeners.add(fn);return ()=>listeners.delete(fn);},emitWorldEvent(type,data={}){if(!allowed.has(type))return false;for(const fn of listeners)fn(type,data&&typeof data==='object'?data:{});return true;}};
 }
 export function createVisualEventTracker(emit){

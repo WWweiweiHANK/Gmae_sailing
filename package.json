@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "test": "node --test scene.test.mjs desktop.test.mjs sailing.test.mjs colors.test.mjs badges.test.mjs",
+    "test": "node --test scene.test.mjs desktop.test.mjs sailing.test.mjs colors.test.mjs badges.test.mjs encounters.test.mjs",
     "preview": "npm run build && node scripts/preview.mjs",
     "desktop:frontend": "node build.mjs --desktop",
     "qa": "node build.mjs --qa",

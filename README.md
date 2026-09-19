@@ -62,7 +62,7 @@ npm run desktop:build
 
 底部有颜色、徽章、船名三个页签。船体、船顶、装饰线共用 8 个可解锁颜色，切换部位后选择色卡；另有 10 个体验徽章，分为已拥有、已知未解锁和未发现三类。徽章和船名绘制在船体两侧的固定铭牌位置，共用并重复更新一张 CanvasTexture。
 
-船名中文最多 6 字、英文数字最多 12 字，混合名称使用宽度预算并按实测文字宽度缩放。确认后应用名称；已拥有颜色和徽章点击即应用，未拥有颜色先确认解锁。外观、航行和颜色归属统一保存在当前来源的 localStorage `tiny-tides-game-v1`（键名保留，内部版本为 3）；自动迁移原 `tiny-tides-ship-v1` 外观并保留旧键。浏览器预览和 Tauri 各自持久保存，不自动跨来源同步。非法字段会回退到默认值；无法解析或版本不兼容的存档禁止覆盖，保存失败会在面板提示。
+船名中文最多 6 字、英文数字最多 12 字，混合名称使用宽度预算并按实测文字宽度缩放。确认后应用名称；已拥有颜色和徽章点击即应用，未拥有颜色先确认解锁。外观、航行和颜色归属统一保存在当前来源的 localStorage `tiny-tides-game-v1`（键名保留，内部版本为 4）；自动迁移原 `tiny-tides-ship-v1` 外观并保留旧键。浏览器预览和 Tauri 各自持久保存，不自动跨来源同步。非法字段会回退到默认值；无法解析或版本不兼容的存档禁止覆盖，保存失败会在面板提示。
 
 关闭或 Escape 平滑返回进入前的相机位置和观察目标，小船从当前航行位置继续，不倒退航线；有待确认的颜色时 Escape 先取消确认。进入时清除残余视角惯性，返回后不发生角度漂移。如果此前手动暂停了世界，展示和返回后都保持暂停。展示中不会保存临时近景为正常观察角度。支持减少动态效果设置，沿用原天气和徽章逻辑。
 
@@ -140,7 +140,8 @@ QA 预览可用 ?scenario=storm 或 ?scenario=aurora 固定极端场景；无参
 | 金色海面 | 黄昏光照过渡超过 90%，且不处于阴暗天气 |
 | 星夜航行 | 星夜下累计有效航行 10 分钟 |
 | 初次远航 / 老水手 | totalSailingSeconds 累计 1 小时 / 10 小时 |
-| 远鲸 / 海玻璃 / 未知徽章 | 配置和接口占位；当前没有自动鲸鱼、漂流物事件 |
+| 远鲸 | 第五阶段的巨鲸轮廓实际出现；浮出事件也可幂等补领 |
+| 海玻璃 / 未知徽章 | 配置和接口占位；荧光海的海玻璃是纪念物归属，不是此徽章 |
 
 夜间进度复用有效航行时间增量，并保存在 badgeProgress.nightSailingSeconds；进入个性化、暂停、隐藏和休眠沿用原航行计时规则，不计离线收益。事件判断在场景完成绘制之后，随机排程本身不发徽章。无需用户盯着屏幕或及时领取。
 
@@ -156,3 +157,42 @@ emitWorldEvent('dolphin_seen');
 ```
 
 正常开发地址中的控制台命令会修改该地址的正常存档，因此测试请使用上述独立地址。只有独立测试页额外暴露 debug_badge_event WebMCP 工具；正式桌面构建不导出控制台调试入口、测试工具或加速配置。徽章没有商店、等级、稀有度和日志页面；sourceEventId 供以后连接日志使用。
+
+## 自动见闻 · 第五阶段
+
+继续使用根目录源码开发；`npm run build` 后刷新 http://127.0.0.1:4173/ 即可查看未打包效果。没有新增常驻界面、任务领取、日志页或纪念物装备页。普通海豚也由同一个 EncounterDirector 调度，旧的独立循环不再驱动实际场景。
+
+- `encounter-catalog.mjs`：10 项配置、条件、权重、奖励、后续链与集中节奏。日常尝试窗口 5–12 分钟，特殊 15–35 分钟，奇观 45–120 分钟；窗口是抽取机会，并非必定发生。初次日常窗口 45–90 秒；空牌、同类降权、冷却和大事件后的 90–180 秒安静期共同控制频率。
+- `encounter-director.mjs`：随机牌组、至多一个主要事件加一个日常事件、极光预留、天气退出、历史与奖励。所有计时只消耗可见且未暂停的世界时间；隐藏不补算。暴雨预警即阻止动物事件并淡出。巨鲸浮出要求巨鲸之影正常完成，单纯安排或中断不满足前置。
+- `encounter-visuals.mjs`：统一 prepare（启动创建）、enter/play/exit（按秒的包络）与 cleanup（隐藏复用）。48 条鱼和光迹、32 只迁徙鸟、12 条流星、14 个鲸喷水点、80 个海面光点均为固定容量；结束后停止更新这些对象。复用原海豚模型和同一水面。为保持原哑光海水，水下鱼群和鲸影使用贴合波高的风格化轮廓投影，不增加透明水体或第二套海面。
+- 只在场景实际绘制到可见阶段后发现，无需点击或领取；奖励不扣航行值。重复发现增加次数，但不会重复获得纪念物或改写首次徽章日期。粉色来客具有固定 visitor ID、不同体型比例和绕船头的伴游路径。
+
+| 见闻 ID | 表现 | 纪念物 |
+| --- | --- | --- |
+| underwater_fish_school | 白天鱼群穿过水下 | 无 |
+| dolphin_companion | 1–3 只海豚适应船线伴游 | dolphin_charm |
+| pink_dolphin | 粉色来客绕船头、伴游、离开 | pink_dolphin_charm |
+| giant_whale_shadow | 远大于小船的水下鲸影 | 无；远鲸徽章 |
+| giant_whale_surface | 鲸影后续，背部浮出、轻翻与呼吸、下潜 | whale_tail_charm |
+| massive_bird_migration | 局部天空 V 形鸟群及淡影 | migration_feather |
+| bioluminescent_sea | 夜间局部海光、船与鱼的荧光尾迹 | glowing_sea_glass |
+| meteor_shower | 小天空内错落出现的流星 | meteor_star_charm |
+| polar_bear_ice | 北极熊随浮冰沿海域边缘经过 | ice_bear_charm |
+| fog_lighthouse | 薄雾中的临时灯塔及旋转暖光 | tiny_lighthouse |
+
+开发测试使用独立存档地址 http://127.0.0.1:4173/?encounterDebug=fast ，自动尝试窗口缩至 10–60 秒，正常存档和航行值兑换速度不受影响。开发控制台可运行：
+
+```js
+DEBUG_ENCOUNTER_SPEED = false; // 单独看演出时先关闭自动加速
+triggerEncounter('pink_dolphin');
+// 夜晚且没有极光时：
+triggerEncounter('bioluminescent_sea');
+```
+
+手动触发跳过冷却与等待，仍检查天气、时段、前置和事件槽；返回 started / conditions / prerequisite / slot 等结果。正常开发地址中的调试命令会写入该地址的存档，所以请用独立测试地址。正式桌面构建移除控制台入口和测试参数，并恢复正式节奏。
+
+若需要固定环境，停止普通预览服务后执行 `npm run qa`、`node scripts/preview.mjs --qa`，打开 `http://127.0.0.1:4173/?encounterDebug=fast&encounterPreview=meteor_shower`；QA 按这个 ID 设置合适的固定天气、关闭极光，再在控制台触发。可换为表中其他 ID。先完整观看 giant_whale_shadow，才能测试 giant_whale_surface。QA 诊断也可切换浅色/深色底。完成后用 `npm run preview` 返回普通预览。
+
+存档版本 4 新增 encounterHistory、ownedSouvenirs、encounterDirectorState，保留原进度、配色与徽章。历史包括 firstSeenAt、lastSeenAt、seenCount、completedCount；保存世界时钟、牌组与冷却，不保存进行中的演出。重载回到安静海面，历史、前置和归属继续保留。统一入口 `unlockSouvenir(id)` 校验配置、去重写入。自然完成发出 `encounter_completed`，包含 encounterId、startTime、endTime、weather、timeOfDay、shipName、firstTime、seenCount、souvenirUnlocked、badgeUnlocked，以及 visitor ID / logTemplate；天气中断使用独立的 encounter_interrupted，不冒充完整经历。
+
+本阶段回退基点 `1d538aa`。如需回退，先备份升级前版本 3 存档；旧程序不支持版本 4，不能用版本 4 数据覆盖旧存档。本次未替换历史 HTML、旧 EXE 或安装包。

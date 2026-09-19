@@ -17,6 +17,9 @@ import {createSailing,sailingConfig} from './sailing.mjs';
 import {createGameSave,GAME_SAVE_KEY} from './game-save.mjs';
 import {createColorPurchases} from './color-purchases.mjs';
 import {createBadges,createWorldEventBus,createVisualEventTracker} from './badges.mjs';
+import {createEncounterDirector} from './encounter-director.mjs';
+import {encounterCatalog,ENCOUNTER_PACING} from './encounter-catalog.mjs';
+import {createEncounterVisuals,encounterBioGLSL} from './encounter-visuals.mjs';
 const canvas = document.querySelector('#scene');
 function showError(text) { document.querySelector('#loading').hidden=true;const el=document.querySelector('#error');el.hidden=false;el.textContent=text; }
 start().catch(error=>{console.error(error);showError('场景未能启动，请检查 WebGL 2 / WebView2。托盘仍可退出或重置。');});
@@ -28,18 +31,20 @@ const soundButton=document.querySelector('#sound'),waveSlider=document.querySele
 const ambience=createAmbientAudio(active=>{soundButton.textContent=active?'静音':'听海';soundButton.setAttribute('aria-pressed',String(active));});
 const qa=typeof __QA__!=='undefined'&&__QA__;
 const query=new URLSearchParams(location.search),scenario=qa?query.get('scenario'):null;
-const initial=scenario==='storm'?{weather:'storm'}:scenario==='aurora'?{period:'night',aurora:true}:{};
+const encounterQA=qa?encounterCatalog.find(e=>e.id===query.get('encounterPreview')):null;
+const initial=encounterQA?{period:encounterQA.conditions.time[0],weather:encounterQA.conditions.weather[0],disableAurora:true}:scenario==='storm'?{weather:'storm'}:scenario==='aurora'?{period:'night',aurora:true}:{};
 const environment=createEnvironment(Math.random,{...initial,fixed:qa});
 const clock=createFrameClock();let timer=0,raf=0,contextLost=false;
 let savedCameraApplied=false,lastNativeSound=null,saveTimer=0;
-let badges=null,renderedNight=false;
+let badges=null,encounterDirector=null,renderedNight=false;
 const worldEventBus=createWorldEventBus(),trackVisualEvents=createVisualEventTracker(worldEventBus.emitWorldEvent);
 let showcase=null,travelTime=15,pageSuspended=false,saveError='';
 const development=typeof __DEV__!=='undefined'&&__DEV__,fastSailing=typeof __DEV__!=='undefined'&&__DEV__&&query.get('sailingDebug')==='fast';
+const fastEncounters=typeof __DEV__!=='undefined'&&__DEV__&&query.get('encounterDebug')==='fast';
 const store=createGameSave({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},
- {key:fastSailing?'tiny-tides-game-debug-v1':GAME_SAVE_KEY,migrateLegacy:!fastSailing,onError:message=>{saveError=message;document.querySelector('#ship-notice').textContent=message;console.warn(message);}});
+ {key:fastEncounters?'tiny-tides-encounters-debug-v1':fastSailing?'tiny-tides-game-debug-v1':GAME_SAVE_KEY,migrateLegacy:!fastSailing&&!fastEncounters,onError:message=>{saveError=message;document.querySelector('#ship-notice').textContent=message;console.warn(message);}});
 const sailing=createSailing({initial:store.read().sailingData,config:sailingConfig(development,fastSailing),onSave:sailingData=>{
- badges?.advance(renderedNight);const saved=store.save({sailingData,...(badges?{badgeProgress:badges.progress()}:{})});if(saved)saveError='';if(showcase?.busy)refreshBalance();
+ badges?.advance(renderedNight);encounterDirector?.save();const saved=store.save({sailingData,...(badges?{badgeProgress:badges.progress()}:{})});if(saved)saveError='';if(showcase?.busy)refreshBalance();
  if(development)console.debug('[航行值]',{...sailingData,isSailingActive:isSailingActive(),debugFast:fastSailing});return saved;
 }});
 const debugPoints=typeof __DEV__!=='undefined'&&__DEV__&&fastSailing?Number(query.get('debugPoints')):0;
@@ -80,13 +85,13 @@ for(let j=0;j<m;j++)for(let i=0;i<n;i++){const a=j*(n+1)+i;indices.push(a,a+n+1,
 const wg=new THREE.BufferGeometry();wg.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));wg.setIndex(indices);
 
 wg.computeVertexNormals();const waterMat=new THREE.MeshLambertMaterial({color:0x367f99});const waterTime={value:15};const waterRain={value:0};const auroraGlow={value:0};
-waterMat.onBeforeCompile=shader=>{shader.uniforms.uRain=waterRain;shader.uniforms.uWaveStrength=waveStrength;shader.uniforms.uSeaTime=waterTime;shader.uniforms.uAuroraGlow=auroraGlow;shader.vertexShader=seaVertexGLSL+'\nvarying vec3 vSeaPosition;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nobjectNormal=normalize(vec3(seaHeightAt(position.xz-vec2(.03,0.))-seaHeightAt(position.xz+vec2(.03,0.)),.06,seaHeightAt(position.xz-vec2(0.,.03))-seaHeightAt(position.xz+vec2(0.,.03))));');shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed.y=seaHeightAt(position.xz);vSeaPosition=transformed;');shader.fragmentShader='uniform float uWaveStrength;\nuniform float uSeaTime;\nuniform float uAuroraGlow;\nvarying vec3 vSeaPosition;\n'+auroraColorGLSL+'\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+waterMat.onBeforeCompile=shader=>{shader.uniforms.uRain=waterRain;shader.uniforms.uWaveStrength=waveStrength;shader.uniforms.uSeaTime=waterTime;shader.uniforms.uAuroraGlow=auroraGlow;shader.uniforms.uBio=encounterVisuals.bio;shader.uniforms.uBioBoat=encounterVisuals.boat;shader.vertexShader=seaVertexGLSL+'\nvarying vec3 vSeaPosition;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nobjectNormal=normalize(vec3(seaHeightAt(position.xz-vec2(.03,0.))-seaHeightAt(position.xz+vec2(.03,0.)),.06,seaHeightAt(position.xz-vec2(0.,.03))-seaHeightAt(position.xz+vec2(0.,.03))));');shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed.y=seaHeightAt(position.xz);vSeaPosition=transformed;');shader.fragmentShader='uniform float uWaveStrength;\nuniform float uSeaTime;\nuniform float uAuroraGlow;\nvarying vec3 vSeaPosition;\n'+auroraColorGLSL+'\n'+encounterBioGLSL+'\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
   vec2 sea=vSeaPosition.xz;
   float phase=sea.x*.55+sea.y*1.15-uSeaTime*.46;
   float swellTone=.98+.085*sin(phase)+.025*sin(sea.x*1.05-sea.y*.55-uSeaTime*.31);
   float flow=.009*sin(sea.x*2.1+sea.y*1.8-uSeaTime*.58);
   diffuseColor.rgb*=.98+(swellTone-.98+flow)*min(uWaveStrength,3.);
-`);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=auroraWaterLight(vSeaPosition,uSeaTime)*uAuroraGlow;');};
+`);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=auroraWaterLight(vSeaPosition,uSeaTime)*uAuroraGlow;\ntotalEmissiveRadiance+=encounterBiolight(vSeaPosition,uSeaTime);');};
 const water=mesh(wg,waterMat);water.castShadow=false;
 const ship=new THREE.Group();scene.add(ship);
 // The hull is built in stacked rings: broad shoulders, a rounded bow and tapered keel.
@@ -117,6 +122,8 @@ const moonShape=new THREE.Shape();moonShape.moveTo(.18,.65);moonShape.bezierCurv
 const moon=mesh(new THREE.ExtrudeGeometry(moonShape,{depth:.14,bevelEnabled:true,bevelSize:.025,bevelThickness:.025,bevelSegments:1,curveSegments:15}),new THREE.MeshStandardMaterial({color:0xffefbc,emissive:0xffd487,emissiveIntensity:.8,roughness:.7}),moonGroup);moon.rotation.y=.45;
 const effects=createVoyageEffects(scene);
 const wake=createWake(scene);
+const encounterVisuals=createEncounterVisuals({scene,ship,dolphinPod:effects.dolphinPod,waterTime,waterRain,waveStrength});
+const wakeWhite=new THREE.Color(0xf4ffff),wakeGlow=new THREE.Color(0x68e9cb);
 const rainCount=1100,rainArray=new Float32Array(rainCount*6),rainMeta=[];for(let i=0;i<rainCount;i++){const x=(Math.random()-.5)*10,z=(Math.random()-.5)*7.3;rainMeta.push({x,z,y:Math.random()*5.2,speed:4+Math.random()*2});}
 const rainGeo=new THREE.BufferGeometry();rainGeo.setAttribute('position',new THREE.BufferAttribute(rainArray,3));const rainMat=new THREE.LineBasicMaterial({color:0xd7f4ff,transparent:true,opacity:0,depthWrite:false});const rain=new THREE.LineSegments(rainGeo,rainMat);scene.add(rain);
 const ripples=[];for(let i=0;i<24;i++){const r=mesh(new THREE.RingGeometry(.14,.16,18),new THREE.MeshBasicMaterial({color:0xcce7ee,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));r.rotation.x=-Math.PI/2;r.position.set((Math.random()-.5)*9,.06,(Math.random()-.5)*6.8);r.castShadow=false;r.userData.phase=Math.random();ripples.push(r);}
@@ -127,7 +134,7 @@ const periodPalettes={
  dawn:{water:0x548c9c,side:[0xcac2b4,0x34556c,0x4a7d90,0x71a3af],sun:1.45,hemi:1.6,light:0xffd8c1}
 };
 const state={time:15};let nightMix=0,rainMix=0,duskMix=0;
-const events={dolphinsAt:8+Math.random()*10,auroraAt:Infinity,lightningAt:Infinity};let dolphinEligible=false,lastStorm=false;
+const events={dolphinsAt:Infinity,auroraAt:Infinity,lightningAt:Infinity};let lastStorm=false;
 const tint=new THREE.Color(),otherTint=new THREE.Color();
 function paint(material,from,to,mix,shade=0){material.color.copy(tint.setHex(from).lerp(otherTint.setHex(to),mix)).multiplyScalar(1-shade*.28);}
 function wave(x,z,t){return seaHeight(x,z,t,rainMix,waveStrength.value);}
@@ -156,6 +163,13 @@ const customization=createShipCustomization(ship,{hull:hullMat,roof:roofMat,stri
 const colors=createColorPurchases({store,sailing,customization});
 badges=createBadges({store,customization,bus:worldEventBus,total:()=>sailing.snapshot().totalSailingSeconds,config:typeof __DEV__!=='undefined'&&__DEV__&&fastSailing?{first_voyage:30,old_sailor:120,starry_night:10}:{},onChange:()=>showcase?.refreshBadges()});
 if(typeof __DEV__!=='undefined'&&__DEV__){window.debugUnlockBadge=id=>badges.unlockBadge(id,{sourceEventId:'debug'});window.emitWorldEvent=worldEventBus.emitWorldEvent;}
+const debugPacing=()=>({...ENCOUNTER_PACING,windows:{ambient:[10,20],special:[20,40],wonder:[40,60]},firstAmbient:[10,15],quietAfterMajor:[5,8],wonderGap:45,cooldownScale:.01});
+encounterDirector=createEncounterDirector({store,bus:worldEventBus,unlockBadge:badges.unlockBadge,shipName:()=>customization.data.name,config:fastEncounters?debugPacing():ENCOUNTER_PACING});
+function encounterEnvironment(env){return {...env,aurora:effects.waterGlow.value,auroraDueIn:env.auroraAllowed?env.auroraAt-env.worldTime:Infinity};}
+if(typeof __DEV__!=='undefined'&&__DEV__){
+ window.triggerEncounter=id=>encounterDirector.startEncounter(id,encounterEnvironment(environment.snapshot()),{ignoreTiming:true});
+ let accelerated=fastEncounters;Object.defineProperty(window,'DEBUG_ENCOUNTER_SPEED',{get:()=>accelerated,set:value=>{accelerated=value===true;encounterDirector.setPacing(accelerated?debugPacing():ENCOUNTER_PACING);}});
+}
 showcase=createShipShowcase({canvas,camera,controls,ship,customization,colors,badges,onColorChange:refreshBalance,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
 // Click-through windows receive no pointer events: poll only the native cursor and raycast this ship.
 let pollingPointer=false;if(bridge.native)setInterval(async()=>{if(pollingPointer||showcase.busy||nativeState.editing||!nativeState.visible||nativeState.minimized)return;pollingPointer=true;
@@ -183,27 +197,25 @@ document.addEventListener('freeze',suspendPage);document.addEventListener('resum
 canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();contextLost=true;syncScheduler();showError('图形上下文已暂停；恢复后自动继续。');});
 canvas.addEventListener('webglcontextrestored',()=>{contextLost=false;document.querySelector('#error').hidden=true;syncScheduler();});
 let latestEnvironment=environment.snapshot();
-function report(){return {...monitor.report(),environment:latestEnvironment,paused:!active(),camera:cameraRecord(),audio:{requested:nativeState.settings.sound,playing:ambience.enabled,loaded:ambience.loaded},rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,ownedColors:store.read().ownedColors,ownedBadges:store.read().ownedBadges,badgeProgress:badges.progress(),seenBadgeNotifications:store.read().seenBadgeNotifications,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
+function report(){return {...monitor.report(),environment:latestEnvironment,encounters:encounterDirector?.snapshot(),paused:!active(),camera:cameraRecord(),audio:{requested:nativeState.settings.sound,playing:ambience.enabled,loaded:ambience.loaded},rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,ownedColors:store.read().ownedColors,ownedBadges:store.read().ownedBadges,badgeProgress:badges.progress(),seenBadgeNotifications:store.read().seenBadgeNotifications,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
 let lastAlpha=null,diagnosticAt=0,startupRecorded=false;
 if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'get_ocean_state',title:'查看桌宠状态与实测性能',description:'只读场景状态、帧率、CPU提交时间及资源数量。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:report});}
 if(typeof __DEV__!=='undefined'&&__DEV__&&fastSailing&&document.modelContext?.registerTool)document.modelContext.registerTool({name:'debug_badge_event',title:'测试存档：触发徽章事件',description:'仅独立开发存档可用；模拟体验事件或直接解锁徽章，正常存档和正式包没有此入口。',inputSchema:{type:'object',properties:{type:{type:'string'},badgeId:{type:'string'}},additionalProperties:false},execute:({type,badgeId})=>({result:badgeId?badges.unlockBadge(badgeId,{sourceEventId:'debug'}):worldEventBus.emitWorldEvent(type,{sourceEventId:'debug-event'}),ownedBadges:store.read().ownedBadges})});
+if(typeof __DEV__!=='undefined'&&__DEV__&&fastEncounters&&document.modelContext?.registerTool)document.modelContext.registerTool({name:'debug_encounter',title:'独立测试存档：见闻演出',description:'仅独立开发存档。trigger 跳过等待，但遵守天气、前置与互斥；end 中断当前演出；pace 调整自动调度测试速度。',inputSchema:{type:'object',properties:{action:{type:'string',enum:['trigger','end','pace']},id:{type:'string'},fast:{type:'boolean'}},required:['action'],additionalProperties:false},execute:({action,id,fast})=>({result:action==='trigger'?window.triggerEncounter(id):action==='end'?encounterDirector.endEncounter(id,true):(window.DEBUG_ENCOUNTER_SPEED=fast===true),state:encounterDirector.snapshot()})});
 if(qa){document.body.dataset.qa='true';document.querySelector('#qa-panel').hidden=false;document.querySelector('#wallpaper').addEventListener('change',e=>{document.body.dataset.wallpaper=e.target.value;});}
 document.querySelector('#export').addEventListener('click',()=>{const data=report();void bridge.diagnostics(data);const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='tiny-tides-diagnostics.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 function frame(now){
  if(!active()){syncScheduler();return;}raf=requestAnimationFrame(frame);
  sailing.tick(performance.now(),isSailingActive());badges.advance(renderedNight);
  const dt=clock.tick(now,true,nativeState.settings.fps);if(!dt)return;const cpuStart=performance.now();
- const worldDt=nativeState.paused?0:dt;state.time+=worldDt;environment.advance(worldDt);travelTime+=worldDt;const env=environment.snapshot();latestEnvironment=env;const t=state.time,from=periodPalettes[env.fromPeriod],pal=periodPalettes[env.period],mix=env.periodBlend;
+ const worldDt=nativeState.paused||dt>30?0:dt;state.time+=worldDt;environment.advance(worldDt);travelTime+=worldDt;const env=environment.snapshot();latestEnvironment=env;const t=state.time,from=periodPalettes[env.fromPeriod],pal=periodPalettes[env.period],mix=env.periodBlend;
  nightMix=env.night;rainMix=env.rain;duskMix=(env.fromPeriod==='dusk'?1:0)*(1-mix)+(env.period==='dusk'?1:0)*mix;
  waveStrength.value+=(waveTarget-waveStrength.value)*(1-Math.exp(-dt*3));
  const canDolphin=env.period==='day'&&env.weather==='clear';
- if(canDolphin&&!dolphinEligible)events.dolphinsAt=env.worldTime+8+Math.random()*10;
- if(canDolphin&&env.worldTime>events.dolphinsAt+14)events.dolphinsAt=env.worldTime+90+Math.random()*90;
- dolphinEligible=canDolphin;
  if(env.weather==='storm'&&!lastStorm)events.lightningAt=env.worldTime+8+Math.random()*16;
  lastStorm=env.weather==='storm';if(lastStorm&&env.worldTime>=events.lightningAt){effects.lightning();ambience.thunder();events.lightningAt=env.worldTime+18+Math.random()*28;}
  const effectWeather=canDolphin?'sunny':env.weather==='storm'?'storm':env.rain>.05?'rainy':'night';events.auroraAt=env.auroraAt;
- effects.update({time:t,elapsed:env.worldTime,weather:effectWeather,events,nightMix,dt,wave,auroraWeather:env.auroraAllowed?'night':'sunny',auroraElapsed:env.worldTime});auroraGlow.value=effects.waterGlow.value;
+ effects.update({time:t,elapsed:env.worldTime,weather:effectWeather,events,nightMix,dt,wave,auroraWeather:env.auroraAllowed?'night':'sunny',auroraElapsed:env.worldTime,managedDolphins:true});auroraGlow.value=effects.waterGlow.value;
  paint(waterMat,from.water,pal.water,mix,env.shade);
  waterMat.color.multiplyScalar(1-showcase.blend*.18);
  sides.forEach((s,i)=>{paint(s,from.side[i],pal.side[i],mix,env.shade);s.emissive.setHSL(.47+.065*Math.sin(t*.075+i*.8),.62,.16);s.emissiveIntensity=auroraGlow.value*(i===0?.025:.12);});
@@ -211,6 +223,8 @@ function frame(now){
  sun.intensity=(from.sun+(pal.sun-from.sun)*mix)*(1-env.shade*.76);hemi.intensity=(from.hemi+(pal.hemi-from.hemi)*mix)*(1-env.shade*.15);fill.intensity=1.1-nightMix*.55-duskMix*.55;
  waterTime.value=t;waterRain.value=rainMix;
  const pos=route(travelTime),next=route(travelTime+.12),heading=Math.atan2(next.x-pos.x,next.z-pos.z);const dx=Math.sin(heading),dz=Math.cos(heading);ship.position.set(pos.x,wave(pos.x,pos.z,t)+.05,pos.z);ship.rotation.set((wave(pos.x-dx*.6,pos.z-dz*.6,t)-wave(pos.x+dx*.6,pos.z+dz*.6,t))*.42,heading,(wave(pos.x+dz*.3,pos.z-dx*.3,t)-wave(pos.x-dz*.3,pos.z+dx*.3,t))*.45);flag.rotation.y=Math.sin(t*4)*.12;
+ encounterDirector.advance(worldDt,encounterEnvironment(env),!nativeState.paused);encounterVisuals.update(encounterDirector.active(),t,wave);
+ wake.mesh.material.color.lerpColors(wakeWhite,wakeGlow,encounterVisuals.bio.value);
  wake.update(t,worldDt,wave,travelTime,!nativeState.paused);showcase.update(dt);customization.animate(dt);
  birds.forEach(({g,wings,phase},i)=>{
   const mode=env.period==='night'||env.weather==='storm'?'night':env.weather==='clear'?'sunny':'rainy';if(env.stormWarning){g.userData.fade=(g.userData.fade??1)*Math.exp(-dt*1.5);g.traverse(p=>{if(p.isMesh)p.material.opacity=g.userData.fade;});g.visible=g.userData.fade>.005;}else updateGullVisibility(g,mode,i,dt);if(!g.visible)return;
@@ -226,7 +240,7 @@ function frame(now){
  ambience.setEnvironment({rain:rainMix,night:nightMix,gulls:!env.stormWarning&&env.period!=='night'&&env.weather==='clear'});ambience.tick();
  controls.dampingFactor=1-Math.exp(-dt*7.6);if(!showcase.busy)controls.update();renderer.render(scene,camera);
  renderedNight=nightMix>.8;
- if(!nativeState.paused)trackVisualEvents({...effects.visibleEvents(t,wave),storm:env.weather==='storm'&&rain.visible&&rainMix>.75,sunset:env.period==='dusk'&&duskMix>.9&&env.shade<.5});
+ if(!nativeState.paused){for(const id of encounterVisuals.visibleIds())encounterDirector.confirmVisible(id);trackVisualEvents({aurora:effects.visibleEvents(t,wave).aurora,storm:env.weather==='storm'&&rain.visible&&rainMix>.75,sunset:env.period==='dusk'&&duskMix>.9&&env.shade<.5});}
  monitor.sample(now,performance.now()-cpuStart,env,buffer);
  if(bridge.native&&!startupRecorded&&monitor.report().last){startupRecorded=true;void bridge.diagnostics({...report(),native:true,windowState:nativeState}).catch(console.warn);}
  if(qa&&now-diagnosticAt>5000){diagnosticAt=now;const gl=renderer.getContext(),pixel=new Uint8Array(4);lastAlpha=[];for(const [x,y] of [[0,0],[buffer.width-1,0],[0,buffer.height-1],[buffer.width-1,buffer.height-1]]){gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);lastAlpha.push([...pixel]);}document.querySelector('#diagnostics').textContent=JSON.stringify(report(),null,2);}

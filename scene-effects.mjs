@@ -49,12 +49,13 @@ export function createVoyageEffects(scene){
   let flashAge=10;
   return {
     waterGlow:aurora.waterGlow,
+    dolphinPod:{groups:dolphins,material:dolphinMaterial,belly:bellyMaterial,fin:finMaterial},
     visibleEvents(time,wave){return {aurora:aurora.visible,dolphin:dolphins.some(g=>g.visible&&g.position.y>wave(g.position.x,g.position.z,time))};},
     lightning(){flashAge=0;bolt.position.x=(Math.random()-.5)*2.5;},
-    update({time,elapsed,weather,events,nightMix,dt,wave,auroraWeather=weather,auroraElapsed=elapsed}){
+    update({time,elapsed,weather,events,nightMix,dt,wave,auroraWeather=weather,auroraElapsed=elapsed,managedDolphins=false}){
       aurora.update(time,auroraElapsed,auroraWeather,events.auroraAt,dt);
       starMaterial.uniforms.time.value=time;starMaterial.uniforms.fade.value=nightMix*.48*(1-aurora.waterGlow.value*.35);
-      dolphins.forEach((g,i)=>{
+      if(!managedDolphins)dolphins.forEach((g,i)=>{
         if(weather!=='sunny'){if(g.visible){g.position.y-=dt*.8;if(g.position.y<-.95)g.visible=false;}return;}
         const u=(elapsed-events.dolphinsAt-i*1.1)/10;g.visible=u>=0&&u<=1;if(!g.visible)return;
         const p=dolphinPose(u,i),q=dolphinPose(Math.min(1,u+.005),i);

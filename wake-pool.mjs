@@ -13,12 +13,12 @@ export function createWake(scene,capacity=200){
  const mesh=new THREE.InstancedMesh(geometry,material,capacity);mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(mesh);
  const particles=Array.from({length:capacity},()=>({born:-999,x:0,z:0,dx:0,dz:0}));
  const dummy=new THREE.Object3D();let cursor=0,accumulator=0;
- function emit(t){const p=route(t),q=route(t+.08);const l=Math.hypot(q.x-p.x,q.z-p.z),dx=(q.x-p.x)/l,dz=(q.z-p.z)/l;
+ function emit(t,travel=t){const p=route(travel),q=route(travel+.08);const l=Math.hypot(q.x-p.x,q.z-p.z),dx=(q.x-p.x)/l,dz=(q.z-p.z)/l;
   for(const side of [-1,1]){const f=particles[cursor++%capacity];Object.assign(f,{born:t,x:p.x-dx*1.04+dz*side*.34,z:p.z-dz*1.04-dx*side*.34,dx:dz*side,dz:-dx*side});}
  }
  for(let t=7;t<15;t+=.1)emit(t);
- return {mesh,capacity,update(time,dt,wave){
-  accumulator=Math.min(accumulator+dt,8);while(accumulator>=.1-1e-8){accumulator-=.1;emit(time-accumulator);}
+ return {mesh,capacity,update(time,dt,wave,travel=time,emitting=true){
+  accumulator=emitting?Math.min(accumulator+dt,8):0;while(accumulator>=.1-1e-8){accumulator-=.1;emit(time-accumulator,travel-accumulator);}
   particles.forEach((f,i)=>{const age=time-f.born;if(age<0||age>8){dummy.scale.setScalar(0);opacity.setX(i,0);}else{
    const x=f.x+f.dx*age*.065,z=f.z+f.dz*age*.065;const size=(.1+Math.min(age,3)*.035)*Math.max(.1,1-age/9);
    dummy.position.set(x,.035+wave(x,z,time),z);dummy.scale.set(size*(1+age*.25),.025,size*.8);opacity.setX(i,.8*(1-age/8));

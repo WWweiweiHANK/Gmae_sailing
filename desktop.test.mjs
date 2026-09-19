@@ -50,3 +50,22 @@ test('wake keeps a fixed GPU buffer and the same trajectory at 20 and 30 FPS',as
 });
 
 test('slow visible frames preserve world speed rather than dropping elapsed time',()=>{const clock=runtime.createFrameClock();clock.tick(0,true,30);assert.equal(clock.tick(1000,true,30),1);clock.tick(1500,false,30);assert.equal(clock.tick(300000,true,30),0);});
+
+test('ship appearance rejects damaged saves, locked badges and overwide names',async()=>{
+ const {sanitizeShip,shipName,DEFAULT_SHIP}=await import('./ship-customization.mjs');
+ assert.deepEqual(sanitizeShip(null),DEFAULT_SHIP);
+ assert.deepEqual(sanitizeShip({name:{},hullColor:'url(https://bad)',roofColor:4,equippedBadge:'moon'}),DEFAULT_SHIP);
+ assert.equal(shipName('一二三四五六七'),'一二三四五六');assert.equal(shipName('ABCDEFGHIJKLM'),'ABCDEFGHIJKL');
+ assert.equal(shipName('小雨ABCD123456'),'小雨ABCD1234');assert.equal(shipName('  小雨\n号\u202e  '),'小雨号');
+ const changed=sanitizeShip({name:'晚风号',hullColor:'#a9d5bd',roofColor:'#e99a7f',stripeColor:'#42685f',equippedBadge:'whale'});
+ assert.deepEqual(sanitizeShip(JSON.parse(JSON.stringify(changed))),changed);assert.equal(changed.equippedBadge,'whale');
+});
+
+test('stationary ship emits no wake and resumes at the frozen route, without a backlog',async()=>{
+ const THREE=await import('three'),{createWake}=await import('./wake-pool.mjs');
+ const wake=createWake(new THREE.Scene()),positions=wake.mesh.instanceMatrix;
+ wake.update(40,25,()=>0,15,false);assert.ok(wake.mesh.geometry.getAttribute('instanceOpacity').array.every(v=>v===0));
+ wake.update(40.1,.1,()=>0,15.1,true);
+ const opacity=wake.mesh.geometry.getAttribute('instanceOpacity').array;
+ assert.equal(opacity.filter(v=>v>0).length,2);assert.equal(wake.mesh.instanceMatrix,positions);
+});

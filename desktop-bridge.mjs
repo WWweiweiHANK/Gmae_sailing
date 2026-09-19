@@ -25,6 +25,8 @@ export async function connectDesktop(onState,onReset,onDiagnostics){
    update({...state});
   },
   drag:()=>native?invoke('drag_pet'):Promise.resolve(),
+  pointer:()=>invoke('ship_pointer'),
+  hover:hit=>invoke('ship_hover',{hit}),
   save:async(camera,wave)=>{
    if(native)return invoke('save_view',{camera,wave});
    try{localStorage.setItem('tiny-tides-view',JSON.stringify({camera,wave}));}catch{}

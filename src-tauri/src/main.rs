@@ -34,6 +34,8 @@ impl Default for Settings {
 #[serde(rename_all = "camelCase")]
 struct PetState {
     editing: bool,
+    inspecting: bool,
+    ship_hovered: bool,
     paused: bool,
     visible: bool,
     minimized: bool,
@@ -153,6 +155,23 @@ fn action(app: &tauri::AppHandle, id: &str) -> Result<(), String> {
                 .map_err(|e| e.to_string())?;
             w.set_focusable(false).map_err(|e| e.to_string())?;
             app.state::<Shared>().0.lock().unwrap().editing = false;
+            app.state::<Shared>().0.lock().unwrap().inspecting = false;
+            app.state::<Shared>().0.lock().unwrap().ship_hovered = false;
+        }
+        "inspect" => {
+            w.set_ignore_cursor_events(false)
+                .map_err(|e| e.to_string())?;
+            w.set_focusable(true).map_err(|e| e.to_string())?;
+            w.set_focus().map_err(|e| e.to_string())?;
+            app.state::<Shared>().0.lock().unwrap().inspecting = true;
+        }
+        "inspect-end" => {
+            let editing = app.state::<Shared>().0.lock().unwrap().editing;
+            w.set_ignore_cursor_events(!editing)
+                .map_err(|e| e.to_string())?;
+            w.set_focusable(editing).map_err(|e| e.to_string())?;
+            app.state::<Shared>().0.lock().unwrap().inspecting = false;
+            app.state::<Shared>().0.lock().unwrap().ship_hovered = false;
         }
         "topmost" => {
             let next = !app.state::<Shared>().0.lock().unwrap().settings.topmost;
@@ -199,6 +218,30 @@ fn pet_action(app: tauri::AppHandle, id: String) -> Result<(), String> {
     action(&app, &id)
 }
 #[tauri::command]
+fn ship_pointer(app: tauri::AppHandle) -> Result<[f64; 2], String> {
+    let w = window(&app)?;
+    let p = w.cursor_position().map_err(|e| e.to_string())?;
+    let origin = w.inner_position().map_err(|e| e.to_string())?;
+    let scale = w.scale_factor().map_err(|e| e.to_string())?;
+    Ok([
+        (p.x - origin.x as f64) / scale,
+        (p.y - origin.y as f64) / scale,
+    ])
+}
+#[tauri::command]
+fn ship_hover(app: tauri::AppHandle, hit: bool) -> Result<(), String> {
+    let w = window(&app)?;
+    let shared = app.state::<Shared>();
+    let mut state = shared.0.lock().map_err(|e| e.to_string())?;
+    if !state.editing && !state.inspecting && state.ship_hovered != hit {
+        // Hover alone must never activate the window. Focus is enabled only after the click.
+        w.set_ignore_cursor_events(!hit)
+            .map_err(|e| e.to_string())?;
+        state.ship_hovered = hit;
+    }
+    Ok(())
+}
+#[tauri::command]
 fn drag_pet(app: tauri::AppHandle) -> Result<(), String> {
     if !app.state::<Shared>().0.lock().unwrap().editing {
         return Err("请先从托盘进入编辑模式".into());
@@ -235,6 +278,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             pet_state,
             pet_action,
+            ship_pointer,
+            ship_hover,
             drag_pet,
             save_view,
             write_diagnostics
@@ -250,6 +295,8 @@ fn main() {
             settings.wave = settings.wave.clamp(0.0, 2.0);
             app.manage(Shared(Mutex::new(PetState {
                 editing: false,
+                inspecting: false,
+                ship_hovered: false,
                 paused: false,
                 visible: true,
                 minimized: false,

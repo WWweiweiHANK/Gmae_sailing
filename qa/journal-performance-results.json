@@ -1,0 +1,55 @@
+{
+  "date": "2026-09-19T16:13:28.671Z",
+  "browser": "153.0.4234.32",
+  "viewport": [
+    560,
+    540
+  ],
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "baseline": {
+    "timestamp": "2026-09-19T16:13:04.751Z",
+    "fps": 29.998800047998074,
+    "cpuMeanMs": 0.9426666680971781,
+    "cpuP95Ms": 1.5999999940395355,
+    "calls": 100,
+    "triangles": 12732,
+    "geometries": 84,
+    "textures": 2,
+    "programs": 11,
+    "buffer": [
+      560,
+      540
+    ],
+    "period": "day",
+    "weather": "clear",
+    "aurora": false,
+    "jsHeapBytes": 24047803,
+    "totalFrames": 284
+  },
+  "opened": {
+    "timestamp": "2026-09-19T16:13:19.767Z",
+    "fps": 29.998800047998074,
+    "cpuMeanMs": 0.6673333326975505,
+    "cpuP95Ms": 1.0999999940395355,
+    "calls": 76,
+    "triangles": 12624,
+    "geometries": 84,
+    "textures": 2,
+    "programs": 11,
+    "buffer": [
+      560,
+      540
+    ],
+    "period": "day",
+    "weather": "clear",
+    "aurora": false,
+    "jsHeapBytes": 24847938,
+    "totalFrames": 733
+  },
+  "cycles": 30,
+  "domBefore": 208,
+  "domAfter": 208,
+  "memoryBefore": 7043924,
+  "memoryAfter": 7179732,
+  "note": "Headless Edge, one five-second sample after each eleven-second settle. CPU measures Three.js submission, not GPU or CSS compositor time. 30 open/close cycles are a short regression check, not a long-duration desktop benchmark."
+}

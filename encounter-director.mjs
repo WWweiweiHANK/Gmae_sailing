@@ -1,8 +1,9 @@
-import {encounterCatalog,ENCOUNTER_PACING as DEFAULT,sanitizeEncounters,souvenirIds} from './encounter-catalog.mjs';
+import {encounterCatalog,ENCOUNTER_PACING as DEFAULT,QUIET_JOURNAL_PACING as QUIET,sanitizeEncounters,souvenirIds} from './encounter-catalog.mjs';
 export function createEncounterDirector({store,bus,unlockBadge,shipName,random=Math.random,now=()=>new Date(),config=DEFAULT}){
  const data=sanitizeEncounters(store.read()),state=data.encounterDirectorState,history=data.encounterHistory,slots=new Map();
  const range=a=>a[0]+random()*(a[1]-a[0]);let sinceSave=0,latestEnv=null,lastCompleted=null;
  for(const tier of ['ambient','special','wonder'])if(state.next[tier]===undefined)state.next[tier]=state.time+range(tier==='ambient'&&Object.keys(history).length<2?config.firstAmbient:config.windows[tier]);
+ if(!state.nextQuietAt)state.nextQuietAt=state.time+range(QUIET.window);
  function limitWaits(){
   state.quietUntil=Math.min(state.quietUntil,state.time+config.quietAfterMajor[1]);state.wonderUntil=Math.min(state.wonderUntil,state.time+config.wonderGap);
   for(const e of encounterCatalog)if(state.cooldowns[e.id]!==undefined)state.cooldowns[e.id]=Math.min(state.cooldowns[e.id],state.time+e.cooldown*(config.cooldownScale??1));
@@ -71,6 +72,12 @@ export function createEncounterDirector({store,bus,unlockBadge,shipName,random=M
     if(!a.preview&&!a.interrupted&&!condition(e,env)){a.interrupted=true;a.exitAt=a.elapsed;}
     a.phase=a.interrupted||a.elapsed>a.duration-4?'exit':a.elapsed<4?'enter':'play';
     if(a.interrupted?a.elapsed-a.exitAt>=config.exitSeconds:a.elapsed>=a.duration)endEncounter(a.id,!!a.interrupted);
+   }
+   if(state.time>=state.nextQuietAt){
+    state.nextQuietAt=state.time+range(QUIET.window);const at=now(),date=`${at.getFullYear()}-${String(at.getMonth()+1).padStart(2,'0')}-${String(at.getDate()).padStart(2,'0')}`;
+    if(!slots.size&&!env.stormWarning&&env.weather!=='storm'&&state.time-state.lastSeenTime>=QUIET.silence&&state.lastQuietDate!==date&&random()<QUIET.chance){
+     state.lastQuietDate=date;state.quietCount++;bus.emitWorldEvent('encounter_completed',{encounterId:'quiet_day',startTime:at.toISOString(),endTime:at.toISOString(),weather:env.weather,timeOfDay:env.period,shipName:shipName(),firstTime:state.quietCount===1,seenCount:state.quietCount,badgeUnlocked:false,souvenirUnlocked:false});persist();
+    }
    }
    for(const tier of ['wonder','special','ambient'])if(state.time>=state.next[tier])schedule(tier,env);
    if(sinceSave>=25){sinceSave=0;persist();}

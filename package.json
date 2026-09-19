@@ -5,7 +5,7 @@
   "scripts": {
     "build": "node build.mjs",
     "build:gm": "node build.mjs --gm",
-    "test": "node --test scene.test.mjs desktop.test.mjs sailing.test.mjs colors.test.mjs badges.test.mjs encounters.test.mjs",
+    "test": "node --test scene.test.mjs desktop.test.mjs sailing.test.mjs colors.test.mjs badges.test.mjs encounters.test.mjs journal.test.mjs",
     "preview": "npm run build && node scripts/preview.mjs",
     "preview:gm": "npm run build:gm && node scripts/preview.mjs",
     "desktop:frontend": "node build.mjs --desktop",

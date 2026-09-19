@@ -20,6 +20,7 @@ import {createBadges,createWorldEventBus,createVisualEventTracker} from './badge
 import {createEncounterDirector} from './encounter-director.mjs';
 import {encounterCatalog,ENCOUNTER_PACING} from './encounter-catalog.mjs';
 import {createEncounterVisuals,encounterBioGLSL} from './encounter-visuals.mjs';
+import {createJournal} from './journal/journal-store.mjs';
 const canvas = document.querySelector('#scene');
 function showError(text) { document.querySelector('#loading').hidden=true;const el=document.querySelector('#error');el.hidden=false;el.textContent=text; }
 start().catch(error=>{console.error(error);showError('场景未能启动，请检查 WebGL 2 / WebView2。托盘仍可退出或重置。');});
@@ -43,13 +44,14 @@ const development=typeof __DEV__!=='undefined'&&__DEV__,fastSailing=typeof __DEV
 const fastEncounters=typeof __DEV__!=='undefined'&&__DEV__&&query.get('encounterDebug')==='fast';
 const store=createGameSave({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},
  {key:fastEncounters?'tiny-tides-encounters-debug-v1':fastSailing?'tiny-tides-game-debug-v1':GAME_SAVE_KEY,migrateLegacy:!fastSailing&&!fastEncounters,onError:message=>{saveError=message;document.querySelector('#ship-notice').textContent=message;console.warn(message);}});
+const journal=createJournal({store,bus:worldEventBus});
 const sailing=createSailing({initial:store.read().sailingData,config:sailingConfig(development,fastSailing),onSave:sailingData=>{
  badges?.advance(renderedNight);encounterDirector?.save();const saved=store.save({sailingData,...(badges?{badgeProgress:badges.progress()}:{})});if(saved)saveError='';if(showcase?.busy)refreshBalance();
  if(development)console.debug('[航行值]',{...sailingData,isSailingActive:isSailingActive(),debugFast:fastSailing});return saved;
 }});
 const debugPoints=typeof __DEV__!=='undefined'&&__DEV__&&fastSailing?Number(query.get('debugPoints')):0;
 if(store.isNew&&Number.isSafeInteger(debugPoints)&&debugPoints>0&&debugPoints<=10000)sailing.addSailingPoints(debugPoints);
-function refreshBalance(){const points=sailing.snapshot().points,button=document.querySelector('#ship-balance');document.querySelector('#sailing-points').textContent=String(points);button.title=`航行值：${points}`;button.setAttribute('aria-label',button.title);}
+function refreshBalance(){const data=sailing.snapshot(),points=data.points,button=document.querySelector('#ship-balance');document.querySelector('#sailing-points').textContent=String(points);button.title=`航行值：${points}`;button.setAttribute('aria-label',button.title);document.querySelector('#ship-voyage-time').textContent=`已航行 ${Math.floor(data.totalSailingSeconds/3600)}h ${Math.floor(data.totalSailingSeconds/60)%60}m`;}
 document.querySelector('#ship-balance').addEventListener('click',()=>{document.querySelector('#ship-notice').textContent=`航行值：${sailing.snapshot().points} · 正常航行一分钟积累一点`;});
 const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,premultipliedAlpha:true,powerPreference:'low-power'});
 renderer.setClearColor(0x000000,0);renderer.setPixelRatio(1);
@@ -177,7 +179,7 @@ if(typeof __DEV__!=='undefined'&&__DEV__){
  window.triggerEncounter=id=>encounterDirector.startEncounter(id,encounterEnvironment(environment.snapshot()),{ignoreTiming:true});
  let accelerated=fastEncounters;Object.defineProperty(window,'DEBUG_ENCOUNTER_SPEED',{get:()=>accelerated,set:value=>{accelerated=value===true;encounterDirector.setPacing(accelerated?debugPacing():ENCOUNTER_PACING);}});
 }
-showcase=createShipShowcase({canvas,camera,controls,ship,customization,colors,badges,onColorChange:refreshBalance,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
+showcase=createShipShowcase({canvas,camera,controls,ship,customization,colors,badges,journal,onColorChange:refreshBalance,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
 // Click-through windows receive no pointer events: poll only the native cursor and raycast this ship.
 let pollingPointer=false;if(bridge.native)setInterval(async()=>{if(pollingPointer||showcase.busy||nativeState.editing||!nativeState.visible||nativeState.minimized)return;pollingPointer=true;
  try{const point=await bridge.pointer();if(!showcase.busy&&!nativeState.editing)await bridge.hover(showcase.hit(...point));}catch(error){console.warn(error);}finally{pollingPointer=false;}

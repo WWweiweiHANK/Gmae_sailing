@@ -1,0 +1,11 @@
+{
+  "smallWindow": {
+    "x": 146.5198211669922,
+    "y": 95.1568832397461,
+    "width": 400.63124084472656,
+    "height": 361.5553665161133
+  },
+  "pageContainers": 4,
+  "errors": [],
+  "checks": "empty / completed events / old names / next and previous / wheel cooldown / close and focus / unread and latest / 560 and 390 widths / 500 entries / reduced motion / reload"
+}

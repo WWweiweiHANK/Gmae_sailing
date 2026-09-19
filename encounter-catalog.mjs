@@ -1,5 +1,6 @@
 // Seconds of visible, unpaused world time, never wall-clock/offline time.
 export const ENCOUNTER_PACING={windows:{ambient:[300,720],special:[900,2100],wonder:[2700,7200]},chance:{ambient:.74,special:.62,wonder:.42},firstAmbient:[45,90],quietAfterMajor:[90,180],wonderGap:2700,exitSeconds:3,cooldownScale:1};
+export const QUIET_JOURNAL_PACING={window:[2700,5400],silence:600,chance:.35};
 export const encounterCatalog=[
  {id:'underwater_fish_school',name:'海底鱼群',category:'UNDERWATER',tier:'ambient',weight:4,minDuration:24,maxDuration:36,cooldown:420,conditions:{time:['day','dawn'],weather:['clear','overcast']},repeatPolicy:'repeat',logTemplate:'一群银色小鱼从船下游过。'},
  {id:'dolphin_companion',name:'海豚伴游',category:'SURFACE',tier:'ambient',weight:3,minDuration:22,maxDuration:32,cooldown:600,conditions:{time:['day','dusk'],weather:['clear','overcast']},repeatPolicy:'repeat',badgeReward:'dolphin',souvenirReward:'dolphin_charm',logTemplate:'海豚陪小船走过了一段航程。'},
@@ -18,6 +19,7 @@ const date=v=>typeof v==='string'&&Number.isFinite(Date.parse(v))?v:null;
 export function sanitizeEncounters(value={}){
  const history={};for(const e of encounterCatalog){const h=value.encounterHistory?.[e.id];if(h&&Number.isSafeInteger(h.seenCount)&&h.seenCount>0)history[e.id]={firstSeenAt:date(h.firstSeenAt),lastSeenAt:date(h.lastSeenAt),seenCount:h.seenCount,completedCount:Math.min(h.seenCount,Math.floor(finite(h.completedCount))),persistentVisitorId:e.persistentVisitorId};}
  const s=value.encounterDirectorState??{},ids=encounterCatalog.map(e=>e.id),state={time:finite(s.time),lastId:ids.includes(s.lastId)?s.lastId:null,categoryStreak:Math.min(10,Math.floor(finite(s.categoryStreak))),lastCategory:['SKY','SURFACE','UNDERWATER','ENVIRONMENT'].includes(s.lastCategory)?s.lastCategory:null,quietUntil:finite(s.quietUntil),wonderUntil:finite(s.wonderUntil),lastSeenTime:finite(s.lastSeenTime),next:{},cooldowns:{},bags:{}};
+ state.nextQuietAt=finite(s.nextQuietAt);state.lastQuietDate=typeof s.lastQuietDate==='string'?s.lastQuietDate.slice(0,10):null;state.quietCount=Math.floor(finite(s.quietCount));
  for(const tier of ['ambient','special','wonder']){if(Number.isFinite(s.next?.[tier])&&s.next[tier]>=0)state.next[tier]=s.next[tier];state.bags[tier]=[...new Set((Array.isArray(s.bags?.[tier])?s.bags[tier]:[]).filter(id=>id===null||encounterCatalog.some(e=>e.id===id&&e.tier===tier)))];}
  for(const id of ids)if(Number.isFinite(s.cooldowns?.[id]))state.cooldowns[id]=finite(s.cooldowns[id]);
  return {encounterHistory:history,ownedSouvenirs:[...new Set((Array.isArray(value.ownedSouvenirs)?value.ownedSouvenirs:[]).filter(id=>souvenirIds.includes(id)))],encounterDirectorState:state};

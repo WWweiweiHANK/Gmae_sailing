@@ -1,5 +1,16 @@
 # 实际验证记录 · 2026-09-17
 
+## 2026-09-20 航海日志第六阶段
+
+- 最终 `npm test` 73/73 通过，新增 8 项涵盖完成事件去重/中断与 GM 过滤、旧船名、鲸影悬念/后续鲸鱼、重复来客文案、首开/未读/末页选择、写入失败重试和坏数据过滤、版本 4 迁移、导演安静日志的活动时间与日期限频、镜头继续跟随并返回原构图。独立只读审查也运行全套 73 项，无待修功能问题。
+- `npm run build:gm`、`npm run qa`、`npm run desktop:frontend` 通过。桌面打包输入包含日志 UI，不含 GM 面板、triggerEncounter 或 debugUnlockBadge；预览继续保留 GM。`git diff --check` 通过。
+- 使用本机 Playwright + Headless Edge 153.0.4234.32 的隔离浏览器存档操作实际界面：进入我的船、首次空日志、向实际事件总线输入完成事件、双页开书、前后翻页、滚轮连续输入只翻一次、Escape 合书和焦点恢复、默认未读/末页、减少动画、重载保存。测试数据仅在隔离浏览器中，不写用户正在使用的存档。
+- 截图验收覆盖 1280×800、桌宠默认 560×540、窄屏 390×700。逐页检查 10 种见闻在默认小窗口的正文/纪念物没有覆盖页码；翻面背面文字正向，左右页有实际空间层次。见 `qa/journal-wide.png`、`qa/journal-flip.png`、`qa/journal-desktop.png`、`qa/journal-narrow.png`。验证时修正装扮面板残留、编辑入口穿透显示、isolation 展平 3D 层和小窗口长文排版。
+- 500 条完成记录仍只有 4 个 `.journal-page` 容器；重载保留 500 条，浏览器无 pageerror。脚本和输出为 `qa/journal-browser.cjs` / `qa/journal-browser-results.json`。测试脚本需要可用的 Playwright 包（本机通过 NODE_PATH 使用已安装的工作区运行库）和本机 Edge；先启动 `npm run preview:gm` 再运行脚本。
+- 性能：560×540、DPR 1、晴天固定 QA 环境，GPU 为 RTX 5070 / ANGLE D3D11；开书前后各等待 11 秒，取最近一段约 5 秒样本。开书前 29.999 FPS，Three.js CPU 平均提交 0.943 ms / P95 1.60 ms；开书后 29.999 FPS，平均 0.667 ms / P95 1.10 ms。两者几何体/纹理/程序数量均为 84/2/11。视野变化使绘制调用从 100 降至 76，不能把差值解释成日志提高了渲染性能。
+- 减少动画模式下连续开合 30 次，DOM 元素计数保持 208，四个纸页容器不变；强制 GC 后 JS 已用堆由 7,043,924 增至 7,179,732 字节（约 133 KiB）。保留增长的真实数值，不宣称零内存增长或长期无泄漏。原始结果在 `qa/journal-performance-results.json`，复现脚本为 `qa/journal-performance.cjs`（先 `npm run qa`，脚本自行启动临时测试端口）。
+- 限制：CPU 提交耗时不含 GPU 完成时间或 CSS 合成耗时；短时 Headless Edge 晴天检查不替代 Windows WebView2 EXE、暴雨/极光、多显示器 DPI 或数小时运行实测。未重编 EXE 和安装包；可选的鼠标拖角翻页未实现，首版使用点击/滚轮/键盘。
+
 ## 2026-09-19 GM 见闻模式
 
 - 用户反馈未看到编辑入口。定位为网页桥接层把非原生预览默认设成 `editing=true`，导致 CSS 按设计隐藏入口。新增回归检查后改为网页与桌面都从锁定状态启动；网页由右上角“编辑预览”显式进入，桌面继续走托盘。

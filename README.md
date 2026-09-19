@@ -62,11 +62,21 @@ npm run desktop:build
 
 底部有颜色、徽章、船名三个页签。船体、船顶、装饰线共用 8 个可解锁颜色，切换部位后选择色卡；另有 10 个体验徽章，分为已拥有、已知未解锁和未发现三类。徽章和船名绘制在船体两侧的固定铭牌位置，共用并重复更新一张 CanvasTexture。
 
-船名中文最多 6 字、英文数字最多 12 字，混合名称使用宽度预算并按实测文字宽度缩放。确认后应用名称；已拥有颜色和徽章点击即应用，未拥有颜色先确认解锁。外观、航行和颜色归属统一保存在当前来源的 localStorage `tiny-tides-game-v1`（键名保留，内部版本为 4）；自动迁移原 `tiny-tides-ship-v1` 外观并保留旧键。浏览器预览和 Tauri 各自持久保存，不自动跨来源同步。非法字段会回退到默认值；无法解析或版本不兼容的存档禁止覆盖，保存失败会在面板提示。
+船名中文最多 6 字、英文数字最多 12 字，混合名称使用宽度预算并按实测文字宽度缩放。确认后应用名称；已拥有颜色和徽章点击即应用，未拥有颜色先确认解锁。外观、航行和颜色归属统一保存在当前来源的 localStorage `tiny-tides-game-v1`（键名保留，内部版本为 5）；自动迁移原 `tiny-tides-ship-v1` 外观并保留旧键。浏览器预览和 Tauri 各自持久保存，不自动跨来源同步。非法字段会回退到默认值；无法解析或版本不兼容的存档禁止覆盖，保存失败会在面板提示。
 
 关闭或 Escape 平滑返回进入前的相机位置和观察目标，小船从当前航行位置继续，不倒退航线；有待确认的颜色时 Escape 先取消确认。进入时清除残余视角惯性，返回后不发生角度漂移。如果此前手动暂停了世界，展示和返回后都保持暂停。展示中不会保存临时近景为正常观察角度。支持减少动态效果设置，沿用原天气和徽章逻辑。
 
 实现入口为 `ship-showcase.mjs`（镜头、点击、旋转、面板）、`ship-customization.mjs`（统一外观数据、校验与纹理），通过 `main.js` 接入原场景；UI 样式在 `template.html`。历史 HTML 快照不改。
+
+## 航海日志 · 第六阶段
+
+刷新本地预览，点击小船进入「我的船」，在船名下方的累计航行时间旁点击「航海日志」。小船继续航行，镜头平滑后退并移到左边；较窄竖屏改为上方小船、下方日志。开书约 1.05 秒，合书约 0.78 秒，翻页约 0.76 秒。纸页边缘、底部箭头、方向键和 PageUp/PageDown 可翻页；Home/End 到首末页，滚轮有 950 毫秒冷却。Escape 先合上书并回到「我的船」，再次按才返回海洋。支持系统减少动画设置，无翻页声音。首版按要求采用点击翻页，未加入拖角翻页。
+
+日志只接收导演的 `encounter_completed`：未实际看见、中断及 GM 预览不写日志，也不会为了测试伪造玩家历史。现有 10 种见闻均有独立文案，鲸影保持悬念、浮出后接续故事，粉色来客重复相遇轮换文字。解锁的纪念物直接记在页脚，无领取按钮。`quiet_day` 也由导演安排：45–90 分钟活动时间检查一次，最近至少安静 10 分钟、没有在场事件且非暴雨时以 35% 概率记录；每个本地日期最多一次。参数位于 `encounter-catalog.mjs` 的 `QUIET_JOURNAL_PACING`。
+
+第一次打开从第一页开始，此后优先首条未读所在双页，无未读时打开最后一页；打开时清除已有未读，阅读过程中新增记录只更新轻量提示，不强行跳页。旧日志保留当时船名。统一存档内部升级为版本 5，增加 `journalEntries` 和 `journalState`，保留航行值、外观、徽章、纪念物及见闻历史；旧历史缺少完整逐次内容，因此不会追溯编造旧日志。浏览器和 EXE 存档仍按来源隔离。回退到旧版前请备份统一存档；旧版本不识别版本 5。
+
+实现入口：`journal/journal-store.mjs`（记录、校验、未读与统一存档）、`journal/journal-templates.mjs`（见闻文案）、`journal/journal-view.mjs`（复用纸页与翻页状态）、`journal/journal.html` / `journal/journal.css`（书本结构和动画）。`build.mjs` 将这些本地内容嵌入预览和桌面前端。只维护四个纸页容器，沿用原来的一个 WebGL 渲染器；不加载外部纹理或字体。实测截图、浏览器检查脚本与性能样本位于 `qa/journal-*`，限制见 `TEST_RESULTS.md`。
 
 ## 航行值 · 第二阶段
 
@@ -74,7 +84,7 @@ npm run desktop:build
 
 `sailing.mjs` 使用真实单调时间差计时，独立于绘制帧率；5 秒卡顿一次结算，超过 30 秒的单次执行间隔丢弃并重置时间基准。墙钟只辅助识别 Windows 休眠，不用于计算收益。当前不支持离线收益，也不保存可用于补算离线收益的时间戳。`sailingConfig()` 集中配置 60 秒兑换、25 秒自动保存、30 秒异常阈值。
 
-`game-save.mjs` 统一管理 `{version:3, shipCustomization, sailingData, ownedColors, colorHintSeen, ownedBadges, seenBadgeNotifications, badgeProgress}`；航行字段为 `points`、`accumulatedSeconds`、`totalSailingSeconds`。在周期、整数变化、停止航行、外观修改、退出展示、网页关闭时保存；托盘退出先通知前端保存，最多等待 2 秒后退出。强制结束进程或写入失败仍可能丢失尚未落盘的进度。存档不每帧写入，界面也不每帧更新。
+`game-save.mjs` 统一管理 `{version:5, shipCustomization, sailingData, ownedColors, colorHintSeen, ownedBadges, seenBadgeNotifications, badgeProgress, encounterHistory, ownedSouvenirs, encounterDirectorState, journalEntries, journalState}`；航行字段为 `points`、`accumulatedSeconds`、`totalSailingSeconds`。在周期、整数变化、停止航行、外观修改、退出展示、网页关闭时保存；托盘退出先通知前端保存，最多等待 2 秒后退出。强制结束进程或写入失败仍可能丢失尚未落盘的进度。存档不每帧写入，界面也不每帧更新。
 
 航行值仅在「我的船」底部面板上方显示小波浪图标和数值，悬停或点击可读说明，无桌面常驻资源栏、提示音或弹窗。管理器公开 `addSailingPoints(amount)`、`spendSailingPoints(amount)`、`canAffordSailingPoints(amount)`，仅接受正安全整数；余额不足返回 false，消费不减少历史航行秒数。颜色解锁通过这些接口扣款。
 

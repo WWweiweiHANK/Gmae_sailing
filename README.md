@@ -4,19 +4,28 @@
 
 **Windows EXE 和 NSIS 安装包已经成功构建。** 双击交付目录中的 Tiny-Tides.exe 可直接启动；需要安装时使用 Tiny-Tides-Setup.exe。实测与未测项见 [TEST_RESULTS.md](TEST_RESULTS.md)，构建输出见 [qa/native-build.log](qa/native-build.log)。
 
-## 网页预览
+## 项目结构与修改入口
 
-独立网页为 [dist/index.html](dist/index.html)，资源均已内嵌。用户在 Codex 的 file:// 预览中报告停留在加载提示，受浏览器工具访问限制，尚未定位该入口的问题；建议用以下本地预览入口。桌宠请直接启动 EXE。网页默认显示编辑工具；“锁定展示”隐藏工具，“编辑预览”可恢复。鼠标穿透与托盘只在 Windows 应用中提供。
+当前游戏只有一份可编辑源码：项目根目录的 `main.js`、`template.html` 和各 `.mjs` 模块。Codex 后续修改游戏功能也只修改这些文件，不直接修改生成的 HTML 或 EXE。
+
+- `history/html/`：过去的独立 HTML 快照，纳入 Git，只用于回看。
+- `preview/index.html`：由当前源码生成的未打包预览，纳入 Git，便于检查每次修改后的网页效果。
+- `desktop-dist/index.html`：由同一份源码临时生成的桌面打包输入；由构建命令维护，不纳入 Git。
+- `src-tauri/`：透明窗口、托盘和桌面系统功能。
+- `src-tauri/target/release/`：最终 EXE 和安装包构建产物，不纳入 Git。
+
+## 测试未打包效果
 
 开发预览：
 
 ```powershell
 npm ci
-npm run build
 npm run preview
 ```
 
-打开 http://127.0.0.1:4173/ 。修改前端后重新构建并刷新。音频默认关闭，点击“听海”后播放低音量自然录音。
+打开 http://127.0.0.1:4173/ 。`npm run preview` 会先根据当前源码重建 `preview/index.html`，再启动本地预览；修改源码后重新执行该命令并刷新。音频默认关闭，点击“听海”后播放低音量自然录音。
+
+不要直接编辑 `preview/index.html`。它是可查看、可提交的生成快照，下次构建会覆盖。直接双击 file:// HTML 曾出现停留在加载提示的问题，本地预览地址是标准测试入口。
 
 ## Windows 开发与打包
 
@@ -35,7 +44,7 @@ npm run desktop:build
 
 应用构建产物位于 src-tauri/target/release/tiny-tides-pet.exe，NSIS 安装包位于 src-tauri/target/release/bundle/nsis/。交付目录同时提供改名后的 EXE 与安装包。
 
-应用脚本与音频嵌入 HTML；模型和纹理由本地代码创建，没有在线资源请求。安装包包含离线 WebView2 安装器，因此首次**构建**仍需下载构建依赖及 WebView2 安装器；最终安装和运行不依赖 CDN。直接运行 EXE 需要机器已安装 WebView2，本机已具备。NSIS 安装与卸载流程尚未实测。应用未配置签名证书。
+`npm run desktop:dev` 和 `npm run desktop:build` 会先生成 `desktop-dist/index.html`，不会读取或修改 `preview/index.html`。应用脚本与音频嵌入 HTML；模型和纹理由本地代码创建，没有在线资源请求。安装包包含离线 WebView2 安装器，因此首次**构建**仍需下载构建依赖及 WebView2 安装器；最终安装和运行不依赖 CDN。直接运行 EXE 需要机器已安装 WebView2，本机已具备。NSIS 安装与卸载流程尚未实测。应用未配置签名证书。
 
 ## 桌宠操作
 
@@ -71,7 +80,7 @@ QA 预览可用 ?scenario=storm 或 ?scenario=aurora 固定极端场景；无参
 
 主要文件：main.js（原场景整合）；environment*.mjs（环境状态）；render-budget.mjs（调度和分辨率）；water-shader.mjs、aurora.mjs、wake-pool.mjs（GPU 动画与批量尾流）；desktop-bridge.mjs（托盘状态桥）；src-tauri/src/main.rs（窗口、托盘、持久化）；src-tauri/src/placement.rs（多屏恢复）。
 
-原网页基线保留在 Git 提交 ddede61。需要回看时可在单独目录检出该版本，避免覆盖当前修改。本次没有更新线上站点。
+过去的 HTML 已复制到 [history/html](history/html/README.md) 并纳入 Git；原网页基线也保留在 Git 提交 `ddede61`。本次没有更新线上站点。
 
 ## 素材许可
 

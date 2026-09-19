@@ -1,6 +1,7 @@
 node_modules/
 .sites-runtime/
 src-tauri/target/
+desktop-dist/
 qa-preview/
 qa/*.exe
 qa/*.pdb

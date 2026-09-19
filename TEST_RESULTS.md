@@ -1,5 +1,12 @@
 # 实际验证记录 · 2026-09-17
 
+## 2026-09-19 项目结构分离验证
+
+- 5 个旧版独立 HTML 已按原始文件 SHA256 不变地保存到 `history/html/`。
+- `npm run build` 成功生成 `preview/index.html`；`npm run desktop:frontend` 成功生成 `desktop-dist/index.html`，两者 SHA256 一致，均来自当前随机环境源码。
+- 本地 `http://127.0.0.1:4173/` 返回 200、2167985 字节；内容包含自动环境状态字段，不包含晴天、雨天、黄昏、夜景的手动按钮。
+- `npm test` 的 22 项检查和 `npm run desktop:check` 通过；`npx tauri build --no-bundle` 从 `desktop-dist/index.html` 完成 release EXE 构建，验证新的桌面打包路径有效。本次结构调整未重新生成 NSIS 安装包。
+
 ## 结论
 
 Windows EXE 与 NSIS 安装包构建成功，已启动交付目录中的 Tiny-Tides.exe，并收到原生前端首个 5 秒绘制诊断，证明场景已经完成初始化并绘制。22 项前端自动检查和 3 项 Rust 位置恢复测试通过。**这次完成构建及启动冒烟验证，不等于下方全部原生桌宠验收已完成。**

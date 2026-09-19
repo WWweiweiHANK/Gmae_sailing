@@ -5,7 +5,8 @@
   "scripts": {
     "build": "node build.mjs",
     "test": "node --test scene.test.mjs desktop.test.mjs",
-    "preview": "node scripts/preview.mjs",
+    "preview": "npm run build && node scripts/preview.mjs",
+    "desktop:frontend": "node build.mjs --desktop",
     "qa": "node build.mjs --qa",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",

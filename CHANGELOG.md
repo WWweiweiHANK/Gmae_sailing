@@ -1,5 +1,13 @@
 # 变更记录
 
+## 2026-09-19 — 分离历史、开发预览与桌面打包输入
+- 目的：让旧 HTML、当前未打包预览和最终桌面打包输入在 Git 中有清晰边界，避免误改旧版或生成文件。
+- 变化：历史独立网页保存至 `history/html/`；当前源码的浏览器预览改为 `preview/index.html`；Tauri 单独从忽略提交的 `desktop-dist/index.html` 打包。
+- 命令：`npm run preview` 自动重建并启动未打包预览；`npm run desktop:dev` 预览桌面窗口；`npm run desktop:build` 生成最终 EXE。
+- 修改入口：游戏功能只改项目根目录的 `main.js`、`template.html` 和相关 `.mjs`；不直接编辑 `preview/`、`desktop-dist/` 或 EXE。
+- 文件：`build.mjs`、`scripts/preview.mjs`、`package.json`、`src-tauri/tauri.conf.json`、`.gitignore`、`history/html/`、`preview/index.html`、`README.md`。
+- 回退：此前桌面打包输入为 `dist/index.html`，对应提交 `2c2e557`；历史 HTML 本身未改内容。
+
 ## 2026-09-17 — Windows EXE 实际交付
 - 用户安装 Visual Studio C++ 工作负载后，解除此前 link.exe 缺失阻塞；成功生成 Windows EXE 和包含离线 WebView2 的 NSIS 安装包。
 - 增加每次原生启动首个采样的自动诊断保存，用于确认场景已完成加载和绘制；不改变现有模型与交互。

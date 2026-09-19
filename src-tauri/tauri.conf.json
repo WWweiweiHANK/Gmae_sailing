@@ -3,7 +3,7 @@
   "productName": "Tiny Tides",
   "version": "0.1.0",
   "identifier": "com.tinytides.desktop",
-  "build": {"beforeBuildCommand": "npm run build", "beforeDevCommand": "npm run build", "frontendDist": "../dist"},
+  "build": {"beforeBuildCommand": "npm run desktop:frontend", "beforeDevCommand": "npm run desktop:frontend", "frontendDist": "../desktop-dist"},
   "app": {
     "windows": [],
     "security": {"csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost data:; img-src 'self' data:; media-src 'self' data:; object-src 'none'; frame-src 'none'"}

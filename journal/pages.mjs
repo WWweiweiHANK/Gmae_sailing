@@ -30,7 +30,7 @@ export function paginateJournal(entries,annotations,measure){
  }
  for(const entry of entries){
   const layout=encounterCatalog.find(e=>e.id===entry.encounterId)?.journalLayout??'normal';
-  if(layout==='full_spread'){next();if((pages.length-1)%2!==0){current.push({kind:'annotation',text:'这一页，留给海。'});next();}}
+  if(layout==='full_spread'||intentOptions(entry).length){next();if((pages.length-1)%2!==0){current.push({kind:'annotation',text:'这一页，留给海。'});next();}}
   const [,month,day]=entry.date.split('-');put({kind:'date',entry,text:`${+month} 月 ${+day} 日 · ${periodNames[entry.timeOfDay]} · ${weatherNames[entry.weather]}`});put({kind:'title',entry,text:entry.title});
   let part=0;for(const paragraph of entry.body.split(/\n+/).filter(Boolean))put({kind:'body',entry,text:paragraph,key:entry.id+'-body-'+part++});
   if(entry.souvenirUnlocked)put({kind:'keepsake',entry,text:'留下了：'+souvenirNames[entry.souvenirUnlocked]});

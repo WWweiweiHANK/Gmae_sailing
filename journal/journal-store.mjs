@@ -2,6 +2,11 @@ import {encounterCatalog,souvenirIds} from '../encounter-catalog.mjs';
 import {journalTemplateCatalog,journalText,periodNames,weatherNames} from './journal-templates.mjs';
 import {intentById,intentOptions} from '../voyage-intents.mjs';
 const date=v=>typeof v==='string'&&Number.isFinite(Date.parse(v));
+export function journalNotice(entries){
+ const notable=entries.filter(e=>!e.read&&encounterCatalog.some(c=>c.id===e.encounterId&&c.tier!=='ambient'));
+ const clue=notable.find(e=>!e.selectedIntentId&&intentOptions(e).length),entry=clue??notable[0];
+ return {kind:clue?'clue':entry?'record':'none',count:notable.length,entryId:entry?.id??null};
+}
 export function sanitizeJournal(value={}){
  const ids=new Set(),journalEntries=[];
  for(const e of Array.isArray(value.journalEntries)?value.journalEntries:[]){
@@ -15,7 +20,7 @@ export function sanitizeJournal(value={}){
   if(!a||typeof a.slot!=='string'||typeof a.item!=='string'||typeof a.text!=='string'||!date(a.timestamp)||(a.sourceJournalEntryId&&!ids.has(a.sourceJournalEntryId)))return false;
   const key=[a.sourceJournalEntryId,a.slot,a.item].join(':');if(annotationKeys.has(key))return false;annotationKeys.add(key);return true;
  }).map(a=>({sourceJournalEntryId:a.sourceJournalEntryId??null,slot:a.slot.slice(0,40),item:a.item.slice(0,80),text:a.text.slice(0,160),timestamp:a.timestamp}));
- return {journalEntries,journalAnnotations,journalUiState:{lastOpenedPage:Number.isSafeInteger(ui.lastOpenedPage)?Math.max(0,ui.lastOpenedPage):0,lastOpenedSection:ui.lastOpenedSection==='voyage'?'voyage':'ship',unreadEntryIds:journalEntries.filter(e=>!e.read).map(e=>e.id)},journalState:{opened:value.journalState?.opened===true,readCount:Number.isSafeInteger(read)?Math.max(0,Math.min(read,journalEntries.length)):0}};
+ return {journalEntries,journalAnnotations,journalUiState:{lastOpenedPage:Number.isSafeInteger(ui.lastOpenedPage)?Math.max(0,ui.lastOpenedPage):0,lastOpenedSection:['voyage','objects'].includes(ui.lastOpenedSection)?ui.lastOpenedSection:'ship',unreadEntryIds:journalEntries.filter(e=>!e.read).map(e=>e.id)},journalState:{opened:value.journalState?.opened===true,readCount:Number.isSafeInteger(read)?Math.max(0,Math.min(read,journalEntries.length)):0}};
 }
 export function createJournal({store,bus,intents=null}){
  const data=sanitizeJournal(store.read()),listeners=new Set(),ids=new Set(data.journalEntries.map(e=>e.id));
@@ -29,7 +34,7 @@ export function createJournal({store,bus,intents=null}){
   data.journalEntries.push({read:false,selectedIntentId:null,selectedIntentText:null,selectedIntentAt:null,respondedToIntentId:intentById(event.respondedToIntentId)?.id??null,respondedToJournalEntryId:event.respondedToJournalEntryId??null,id,timestamp:event.endTime,date:`${at.getFullYear()}-${String(at.getMonth()+1).padStart(2,'0')}-${String(at.getDate()).padStart(2,'0')}`,timeOfDay:event.timeOfDay,weather:event.weather,encounterId:event.encounterId,...text,shipName:event.shipName,firstTime:event.firstTime,seenCount:event.seenCount,badgeUnlocked:event.badgeUnlocked?e?.badgeReward??null:null,souvenirUnlocked:event.souvenirUnlocked?e?.souvenirReward??null:null});changed();
  });
  function markRead(index,includeClues=false){let touched=false;for(const entry of data.journalEntries.slice(index,index+2))if(!entry.read&&(includeClues||entry.selectedIntentId||!intentOptions(entry).length)){entry.read=true;touched=true;}if(touched){data.journalState.readCount=data.journalEntries.filter(e=>e.read).length;changed(false);}}
- return {get revision(){return revision;},save,markRead,entries:()=>structuredClone(data.journalEntries),unread:()=>data.journalEntries.filter(e=>!e.read).length,subscribe(fn){listeners.add(fn);return ()=>listeners.delete(fn);},
+ return {get revision(){return revision;},save,markRead,notice:()=>journalNotice(data.journalEntries),entries:()=>structuredClone(data.journalEntries),unread:()=>data.journalEntries.filter(e=>!e.read).length,subscribe(fn){listeners.add(fn);return ()=>listeners.delete(fn);},
   ui:()=>structuredClone(data.journalUiState),annotations:()=>structuredClone(data.journalAnnotations),
   remember(page,section){data.journalUiState.lastOpenedPage=page;data.journalUiState.lastOpenedSection=section;save();},
   markReadIds(ids,includeClues=false){let touched=false;for(const e of data.journalEntries)if(ids.includes(e.id)&&!e.read&&(includeClues||e.selectedIntentId||!intentOptions(e).length)){e.read=true;touched=true;}if(touched){data.journalUiState.unreadEntryIds=data.journalEntries.filter(e=>!e.read).map(e=>e.id);changed(false);}},

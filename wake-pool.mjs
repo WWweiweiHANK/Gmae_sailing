@@ -17,7 +17,7 @@ export function createWake(scene,capacity=200,initialScale=1){
   for(const side of [-1,1]){const f=particles[cursor++%capacity];Object.assign(f,{born:t,x:p.x+(-dx*1.04+dz*side*.34)*scale,z:p.z+(-dz*1.04-dx*side*.34)*scale,dx:dz*side,dz:-dx*side,scale});}
  }
  for(let t=7;t<15;t+=.1)emit(t,t,initialScale);
- return {mesh,capacity,update(time,dt,wave,travel=time,emitting=true,scale=1){
+ return {mesh,capacity,greet(time,travel,scale){for(let i=0;i<5;i++)emit(time-i*.09,travel-i*.09,scale*1.15);},update(time,dt,wave,travel=time,emitting=true,scale=1){
   accumulator=emitting?Math.min(accumulator+dt,8):0;while(accumulator>=.1-1e-8){accumulator-=.1;emit(time-accumulator,travel-accumulator,scale);}
   particles.forEach((f,i)=>{const age=time-f.born;if(age<0||age>8){dummy.scale.setScalar(0);opacity.setX(i,0);}else{
    const x=f.x+f.dx*age*.065,z=f.z+f.dz*age*.065;const size=(.1+Math.min(age,3)*.035)*Math.max(.1,1-age/9);

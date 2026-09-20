@@ -2,6 +2,7 @@ import {drawBadge,shipName} from '../ship-customization.mjs';
 import {boatSkinCatalog,skinThumbnail} from '../boat-skins.mjs';
 import {accessoryCatalog,accessorySlots} from '../boat-accessories.mjs';
 import {accessoryRewards} from '../accessory-rewards.mjs';
+export const JOURNAL_START_PAGE=6;
 export function element(tag,className='',content=''){const el=document.createElement(tag);el.className=className;el.textContent=content;return el;}
 export function createShipPages({store,sailing,customization,skins,accessories,badges,journal,intents,preview,changed}){
  let slot='charm';
@@ -23,7 +24,7 @@ export function createShipPages({store,sailing,customization,skins,accessories,b
  function skinPage(parent){parent.append(element('p','journal-date','02 / A BOAT OF MY OWN'),element('h2','','船只改造记录'),element('p','paper-caption','九种模样，都可以陪我远航。'));
   const list=element('div','paper-skins');for(const skin of boatSkinCatalog){const button=element('button','paper-skin');button.type='button';button.dataset.skin=skin.id;button.innerHTML=skinThumbnail(skin);button.setAttribute('aria-label',skin.name);button.setAttribute('aria-pressed',String(customization.data.skinId===skin.id));button.title=skin.name+" · "+skin.description;button.onclick=()=>{if(customization.data.skinId===skin.id)return;if(skins.equip(skin.id)==='save-failed'){note('未能保存外观，请重试。');return;}annotate('skin',skin.id,skin.name);changed();};list.append(button);}parent.append(list);
  }
- function objects(parent){parent.append(element('h2','','随船物件'));model(parent).classList.add('compact');
+ function objects(parent){parent.append(element('p','journal-date','随船物件 / KEEPSAKES'),element('h2','','随船物件'));
   const label=element('label','object-location','装在 '),select=element('select');select.setAttribute('aria-label','装饰位置');for(const [id,name] of Object.entries(accessorySlots))select.add(new Option(name,id));select.add(new Option('航行徽章','badges'));select.value=slot;select.onchange=()=>{slot=select.value;changed(false,true);};label.append(select);parent.append(label);
   const list=element('div','paper-objects');parent.append(list);
   if(slot==='badges'){
@@ -36,5 +37,5 @@ export function createShipPages({store,sailing,customization,skins,accessories,b
   }
   parent.append(element('p','paper-caption','留在船上的，是遇见过的风景。'));
  }
- return {render(index,parent){parent.classList.add('ship-paper');if(index===0)profile(parent);if(index===1){parent.append(element('p','journal-date','A SMALL BOAT / BIG MEMORIES'));model(parent);parent.append(element('p','model-name',customization.data.name),element('p','paper-caption','轻轻转一转，看看今天的小船。'));const latest=journal.annotations().filter(a=>!a.sourceJournalEntryId).at(-1);if(latest)parent.append(element('p','journal-annotation',new Date(latest.timestamp).toLocaleDateString()+' · '+latest.text));}if(index===2)skinPage(parent);if(index===3)objects(parent);},refreshBalance(){const button=document.querySelector('#ship-balance');if(button)button.textContent='≈ '+sailing.snapshot().points+' 海里';}};
+ return {render(index,parent){parent.classList.add('ship-paper');if(index===0)profile(parent);if(index%2===1){parent.append(element('p','journal-date','A SMALL BOAT / BIG MEMORIES'));model(parent);parent.append(element('p','model-name',customization.data.name),element('p','paper-caption',index===5?'随身的纪念，都留在这艘船上。':'轻轻转一转，看看今天的小船。'));const latest=journal.annotations().filter(a=>!a.sourceJournalEntryId).at(-1);if(latest)parent.append(element('p','journal-annotation',new Date(latest.timestamp).toLocaleDateString()+' · '+latest.text));}if(index===2)skinPage(parent);if(index===4)objects(parent);},refreshBalance(){const button=document.querySelector('#ship-balance');if(button)button.textContent='≈ '+sailing.snapshot().points+' 海里';}};
 }

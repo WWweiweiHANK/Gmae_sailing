@@ -5,12 +5,29 @@ import {createWorldEventBus} from './badges.mjs';
 import {createEncounterDirector} from './encounter-director.mjs';
 import * as THREE from 'three';
 import {clonePreviewShip} from './journal/ship-preview.mjs';
+import {createWake} from './wake-pool.mjs';
+test('a boat greeting reuses the fixed wake pool without moving the ship',()=>{
+ const scene=new THREE.Scene(),wake=createWake(scene,200,.75),mesh=wake.mesh;assert.equal(typeof wake.greet,'function');
+ wake.update(30,0,()=>0,30,false,.75);assert.ok([...mesh.geometry.getAttribute('instanceOpacity').array].every(n=>n===0));
+ for(let i=0;i<40;i++)wake.greet(30,30,.75);wake.update(30,0,()=>0,30,false,.75);
+ assert.equal(scene.children.length,1);assert.equal(wake.mesh,mesh);assert.equal(mesh.count,200);assert.ok([...mesh.geometry.getAttribute('instanceOpacity').array].some(n=>n>0));mesh.geometry.dispose();mesh.material.dispose();
+});
 test('paper preview shares GPU resources while keeping independent transforms',()=>{
  const original=new THREE.Group(),mesh=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshStandardMaterial());original.add(mesh);original.position.set(2,1,3);original.scale.setScalar(.75);
  const copy=clonePreviewShip(original);assert.equal(copy.children[0].geometry,mesh.geometry);assert.equal(copy.children[0].material,mesh.material);copy.rotation.y=1;assert.equal(original.rotation.y,0);assert.equal(original.scale.x,.75);assert.deepEqual(original.position.toArray(),[2,1,3]);
  mesh.geometry.dispose();mesh.material.dispose();
 });
 let journalModule={};try{journalModule=await import('./journal/journal-store.mjs');}catch{}
+test('journal reminders distinguish ambient notes, discoveries and unfinished clues',()=>{
+ const notice=journalModule.journalNotice;assert.equal(typeof notice,'function');
+ const entry=(id,count=1)=>({...event(id,count),id:id+count,read:false,selectedIntentId:null});
+ const ordinary=['quiet_day','underwater_fish_school','dolphin_companion'].map(id=>entry(id));
+ assert.deepEqual(notice(ordinary),{kind:'none',count:0,entryId:null});
+ const pink=entry('pink_dolphin');assert.deepEqual(notice([...ordinary,pink]),{kind:'record',count:1,entryId:pink.id});
+ const whale=entry('giant_whale_shadow');assert.deepEqual(notice([...ordinary,pink,whale]),{kind:'clue',count:2,entryId:whale.id});
+ assert.equal(notice([entry('pink_dolphin',2)]).kind,'clue');assert.equal(notice([{...whale,selectedIntentId:'free_sailing'}]).kind,'record');
+ assert.deepEqual(notice([{...pink,read:true},{...whale,read:true}]),{kind:'none',count:0,entryId:null});
+});
 function setup(){
  const disk=new Map(),storage={getItem:k=>disk.get(k)??null,setItem:(k,v)=>disk.set(k,v)},store=createGameSave(storage),bus=createWorldEventBus();
  assert.equal(typeof journalModule.createJournal,'function');

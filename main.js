@@ -193,8 +193,13 @@ if(typeof __DEV__!=='undefined'&&__DEV__&&fastEncounters){
  };
 }
 // Click-through windows receive no pointer events: poll only the native cursor and raycast this ship.
+const shipRay=new THREE.Raycaster(),shipPointer=new THREE.Vector2();let boatPress=null;
+function shipHit(x,y){const r=canvas.getBoundingClientRect();shipPointer.set((x-r.left)/r.width*2-1,-(y-r.top)/r.height*2+1);ship.updateWorldMatrix(true,true);shipRay.setFromCamera(shipPointer,camera);return shipRay.intersectObject(ship,true).some(h=>{if(!h.object.isMesh)return false;for(let n=h.object;n;n=n.parent)if(!n.visible)return false;return true;});}
+canvas.addEventListener('pointerdown',e=>{boatPress=e.button===0?{x:e.clientX,y:e.clientY,at:performance.now()}:null;});
+canvas.addEventListener('pointercancel',()=>{boatPress=null;});
+canvas.addEventListener('pointerup',e=>{const press=boatPress;boatPress=null;if(press&&!journalBook.busy&&!nativeState.paused&&performance.now()-press.at<450&&Math.hypot(e.clientX-press.x,e.clientY-press.y)<5&&shipHit(e.clientX,e.clientY))wake.greet(state.time,travelTime,ship.scale.x);});
 let pollingPointer=false;if(bridge.native)setInterval(async()=>{if(pollingPointer||journalBook.busy||nativeState.editing||!nativeState.visible||nativeState.minimized)return;pollingPointer=true;
- try{const point=await bridge.pointer();if(!journalBook.busy&&!nativeState.editing)await bridge.hover(journalBook.noteHit(...point));}catch(error){console.warn(error);}finally{pollingPointer=false;}
+ try{const point=await bridge.pointer();if(!journalBook.busy&&!nativeState.editing)await bridge.hover(journalBook.noteHit(...point)||shipHit(...point));}catch(error){console.warn(error);}finally{pollingPointer=false;}
 },100);
 if(!bridge.native){try{const record=JSON.parse(localStorage.getItem('tiny-tides-view'));if(record){restoreView(record.camera);waveTarget=Math.max(0,Math.min(2,record.wave))*2.2;waveSlider.value=String(waveTarget/.022);document.querySelector('#wave-value').value=waveSlider.value+'%';}}catch{}}
 soundButton.addEventListener('click',()=>{void bridge.action('sound').catch(console.warn);});

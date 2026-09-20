@@ -2,56 +2,50 @@
   {
     "volume": 0.55,
     "ok": true,
-    "time": 0.329326,
+    "time": 0.126547,
     "duration": 0.587982
   },
   {
-    "volume": 0.55,
+    "volume": 0.32359069649641065,
     "ok": true,
-    "time": 0.123497,
-    "duration": 0.587982
+    "time": 0.124947,
+    "duration": 0.58
   },
   {
-    "volume": 0.3407442624446462,
+    "volume": 0.36733292053699856,
     "ok": true,
-    "time": 0.124584,
-    "duration": 0.555011
+    "time": 0.003145,
+    "duration": 0.58
   },
   {
-    "volume": 0.3553642479528762,
-    "ok": true,
-    "time": 0.080707,
-    "duration": 0.530023
-  },
-  {
-    "volume": 0.37337885245125224,
+    "volume": 0.3412745830461547,
     "ok": false,
     "time": 0,
     "duration": 0,
     "error": "AbortError: The play() request was interrupted by a call to pause()."
   },
   {
-    "volume": 0.34582377368598943,
+    "volume": 0.3321586876926296,
     "ok": true,
-    "time": 0.114643,
+    "time": 0.118227,
     "duration": 0.58
   },
   {
-    "volume": 0.34178227160616903,
+    "volume": 0.37767498737321736,
     "ok": true,
-    "time": 0.108808,
-    "duration": 0.530023
+    "time": 0.118376,
+    "duration": 0.504989
   },
   {
-    "volume": 0.3765036843780538,
+    "volume": 0.36457523550735393,
     "ok": true,
-    "time": 0.123542,
-    "duration": 0.530023
+    "time": 0.132949,
+    "duration": 0.58
   },
   {
     "volume": 0.55,
     "ok": true,
-    "time": 0.145521,
+    "time": 0.140639,
     "duration": 0.696508
   }
 ]

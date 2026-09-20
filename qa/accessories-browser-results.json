@@ -3,15 +3,15 @@
   "checks": "all fittings selectable / 7 mounts / all9 skins retain choices / atomic save and reload / name and badge retained / no points spent / 560x540 and390x700 layout / keyboard tabs / journal / repeated GPU resource stability",
   "resources": [
     {
-      "timestamp": "2026-09-20T03:10:09.341Z",
-      "fps": 25.757757278063977,
-      "cpuMeanMs": 1.1651162777760231,
-      "cpuP95Ms": 1.9000000059604645,
-      "calls": 193,
-      "triangles": 24980,
-      "geometries": 63,
+      "timestamp": "2026-09-20T04:01:26.903Z",
+      "fps": 25.643574197395886,
+      "cpuMeanMs": 1.9147286817084912,
+      "cpuP95Ms": 2.199999988079071,
+      "calls": 201,
+      "triangles": 27312,
+      "geometries": 70,
       "textures": 2,
-      "programs": 11,
+      "programs": 12,
       "buffer": [
         1100,
         800
@@ -19,19 +19,19 @@
       "period": "day",
       "weather": "clear",
       "aurora": false,
-      "jsHeapBytes": 21920831,
+      "jsHeapBytes": 20259156,
       "totalFrames": 133
     },
     {
-      "timestamp": "2026-09-20T03:10:19.375Z",
-      "fps": 25.97298809238392,
-      "cpuMeanMs": 1.1038461540754025,
-      "cpuP95Ms": 1.800000011920929,
-      "calls": 193,
-      "triangles": 24980,
-      "geometries": 63,
+      "timestamp": "2026-09-20T04:01:36.949Z",
+      "fps": 26.058243157224695,
+      "cpuMeanMs": 1.1908396960214804,
+      "cpuP95Ms": 2,
+      "calls": 201,
+      "triangles": 27312,
+      "geometries": 70,
       "textures": 2,
-      "programs": 11,
+      "programs": 12,
       "buffer": [
         1100,
         800
@@ -39,8 +39,8 @@
       "period": "day",
       "weather": "clear",
       "aurora": false,
-      "jsHeapBytes": 24822197,
-      "totalFrames": 394
+      "jsHeapBytes": 23301151,
+      "totalFrames": 395
     }
   ],
   "errors": []

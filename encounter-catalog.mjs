@@ -1,19 +1,21 @@
+import {accessoryRewards} from './accessory-rewards.mjs';
 // Seconds of visible, unpaused world time, never wall-clock/offline time.
 export const ENCOUNTER_PACING={windows:{ambient:[300,720],special:[900,2100],wonder:[2700,7200]},chance:{ambient:.74,special:.62,wonder:.42},firstAmbient:[45,90],quietAfterMajor:[90,180],wonderGap:2700,exitSeconds:3,cooldownScale:1};
 export const QUIET_JOURNAL_PACING={window:[2700,5400],silence:600,chance:.35};
 export const encounterCatalog=[
  {id:'underwater_fish_school',name:'海底鱼群',category:'UNDERWATER',tier:'ambient',weight:4,minDuration:24,maxDuration:36,cooldown:420,conditions:{time:['day','dawn'],weather:['clear','overcast']},repeatPolicy:'repeat',logTemplate:'一群银色小鱼从船下游过。'},
- {id:'dolphin_companion',name:'海豚伴游',category:'SURFACE',tier:'ambient',weight:3,minDuration:22,maxDuration:32,cooldown:600,conditions:{time:['day','dusk'],weather:['clear','overcast']},repeatPolicy:'repeat',badgeReward:'dolphin',souvenirReward:'dolphin_charm',logTemplate:'海豚陪小船走过了一段航程。'},
- {id:'pink_dolphin',name:'粉色来客',category:'SURFACE',tier:'special',weight:2,minDuration:26,maxDuration:40,cooldown:2400,conditions:{time:['day','dusk'],weather:['clear']},repeatPolicy:'visitor',persistentVisitorId:'pink-dolphin-01',souvenirReward:'pink_dolphin_charm',logTemplate:'浅粉色的海豚绕过船头，又回到船边。'},
- {id:'giant_whale_shadow',name:'巨鲸之影',category:'UNDERWATER',tier:'special',weight:2,minDuration:20,maxDuration:30,cooldown:3000,conditions:{time:['day','dusk','night'],weather:['clear','overcast']},repeatPolicy:'diminish',badgeReward:'whale',followup:'giant_whale_surface',logTemplate:'一道巨大的鲸影安静地经过小船下方。'},
- {id:'giant_whale_surface',name:'鲸的呼吸',category:'SURFACE',tier:'wonder',weight:1,minDuration:32,maxDuration:42,cooldown:7200,conditions:{time:['day','dusk','night'],weather:['clear','overcast'],prerequisite:'giant_whale_shadow'},repeatPolicy:'rare',badgeReward:'whale',souvenirReward:'whale_tail_charm',logTemplate:'熟悉的巨鲸浮上水面，缓缓翻身后潜回深蓝。'},
- {id:'massive_bird_migration',name:'迁徙鸟群',category:'SKY',tier:'special',weight:2,minDuration:18,maxDuration:25,cooldown:2100,conditions:{time:['day','dusk','dawn'],weather:['clear','overcast']},repeatPolicy:'repeat',souvenirReward:'migration_feather',logTemplate:'一列迁徙的鸟群从小海上空掠过。'},
- {id:'bioluminescent_sea',name:'荧光海',category:'ENVIRONMENT',tier:'wonder',weight:2,minDuration:40,maxDuration:60,cooldown:6000,conditions:{time:['night'],weather:['clear','overcast','drizzle']},repeatPolicy:'rare',souvenirReward:'glowing_sea_glass',logTemplate:'微小的生命点亮海水，船后留下青蓝色的光。'},
- {id:'meteor_shower',name:'流星雨',category:'SKY',tier:'wonder',weight:2,minDuration:28,maxDuration:40,cooldown:7200,conditions:{time:['night'],weather:['clear','overcast']},repeatPolicy:'rare',souvenirReward:'meteor_star_charm',logTemplate:'第一颗流星之后，又有几束光划过小小的夜空。'},
- {id:'polar_bear_ice',name:'浮冰来客',category:'SURFACE',tier:'special',weight:1,minDuration:35,maxDuration:50,cooldown:3600,conditions:{time:['day','dawn'],weather:['clear','overcast']},repeatPolicy:'rare',souvenirReward:'ice_bear_charm',logTemplate:'一只小北极熊趴在浮冰上，从海的边缘漂过。'},
- {id:'fog_lighthouse',name:'雾中灯塔',category:'ENVIRONMENT',tier:'special',weight:2,minDuration:40,maxDuration:60,cooldown:3600,conditions:{time:['night'],weather:['clear','overcast','drizzle']},repeatPolicy:'rare',souvenirReward:'tiny_lighthouse',logTemplate:'雾里出现了一座灯塔，暖光转过海面，又消失在雾中。'}
-].map(e=>({followup:null,badgeReward:null,souvenirReward:null,persistentVisitorId:null,...e,visualHandler:e.id}));
-export const souvenirIds=encounterCatalog.map(e=>e.souvenirReward).filter(Boolean);
+ {id:'dolphin_companion',name:'海豚伴游',category:'SURFACE',tier:'ambient',weight:3,minDuration:22,maxDuration:32,cooldown:600,conditions:{time:['day','dusk'],weather:['clear','overcast']},repeatPolicy:'repeat',logTemplate:'海豚陪小船走过了一段航程。'},
+ {id:'pink_dolphin',name:'粉色来客',category:'SURFACE',tier:'special',weight:2,minDuration:26,maxDuration:40,cooldown:2400,conditions:{time:['day','dusk'],weather:['clear']},repeatPolicy:'visitor',persistentVisitorId:'pink-dolphin-01',logTemplate:'浅粉色的海豚绕过船头，又回到船边。'},
+ {id:'giant_whale_shadow',name:'巨鲸之影',category:'UNDERWATER',tier:'special',weight:2,minDuration:20,maxDuration:30,cooldown:3000,conditions:{time:['day','dusk','night'],weather:['clear','overcast']},repeatPolicy:'diminish',followup:'giant_whale_surface',logTemplate:'一道巨大的鲸影安静地经过小船下方。'},
+ {id:'giant_whale_surface',name:'鲸的呼吸',category:'SURFACE',tier:'wonder',weight:1,minDuration:32,maxDuration:42,cooldown:7200,conditions:{time:['day','dusk','night'],weather:['clear','overcast'],prerequisite:'giant_whale_shadow'},repeatPolicy:'rare',logTemplate:'熟悉的巨鲸浮上水面，缓缓翻身后潜回深蓝。'},
+ {id:'massive_bird_migration',name:'迁徙鸟群',category:'SKY',tier:'special',weight:2,minDuration:18,maxDuration:25,cooldown:2100,conditions:{time:['day','dusk','dawn'],weather:['clear','overcast']},repeatPolicy:'repeat',logTemplate:'一列迁徙的鸟群从小海上空掠过。'},
+ {id:'bioluminescent_sea',name:'荧光海',category:'ENVIRONMENT',tier:'wonder',weight:2,minDuration:40,maxDuration:60,cooldown:6000,conditions:{time:['night'],weather:['clear','overcast','drizzle']},repeatPolicy:'rare',logTemplate:'微小的生命点亮海水，船后留下青蓝色的光。'},
+ {id:'meteor_shower',name:'流星雨',category:'SKY',tier:'wonder',weight:2,minDuration:28,maxDuration:40,cooldown:7200,conditions:{time:['night'],weather:['clear','overcast']},repeatPolicy:'rare',logTemplate:'第一颗流星之后，又有几束光划过小小的夜空。'},
+ {id:'polar_bear_ice',name:'浮冰来客',category:'SURFACE',tier:'special',weight:1,minDuration:35,maxDuration:50,cooldown:3600,conditions:{time:['day','dawn'],weather:['clear','overcast']},repeatPolicy:'rare',logTemplate:'一只小北极熊趴在浮冰上，从海的边缘漂过。'},
+ {id:'fog_lighthouse',name:'雾中灯塔',category:'ENVIRONMENT',tier:'special',weight:2,minDuration:40,maxDuration:60,cooldown:3600,conditions:{time:['night'],weather:['clear','overcast','drizzle']},repeatPolicy:'rare',logTemplate:'雾里出现了一座灯塔，暖光转过海面，又消失在雾中。'}
+].map(e=>({followup:null,persistentVisitorId:null,...e,badgeReward:null,souvenirReward:accessoryRewards.find(r=>r.event===e.id)?.souvenir??null,visualHandler:e.id}));
+// Historical log entries keep their original souvenir IDs and names.
+export const souvenirIds=[...new Set([...accessoryRewards.flatMap(r=>[r.souvenir,r.legacy].filter(Boolean)),'whale_tail_charm'])];
 const finite=v=>Number.isFinite(v)&&v>=0?v:0;
 const date=v=>typeof v==='string'&&Number.isFinite(Date.parse(v))?v:null;
 export function sanitizeEncounters(value={}){

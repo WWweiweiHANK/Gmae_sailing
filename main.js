@@ -153,12 +153,13 @@ bridge=await connectDesktop(showNative,()=>{if(showcase?.busy)showcase.close();e
 const customization=createShipCustomization(ship,{hull:hullMat,roof:roofMat,stripe:stripeMat},message=>{document.querySelector('#ship-notice').textContent=message;},store.read().shipCustomization,
  shipCustomization=>store.save({shipCustomization,sailingData:sailing.snapshot()}),boat);
 const skins=createBoatSkins({store,customization});
-const accessories=createAccessoryEquipment({store,customization});
+const accessories=createAccessoryEquipment({store,customization,preview:typeof __GM__!=='undefined'&&__GM__});
 document.documentElement.style.setProperty('--accessory-sheet',`url("${accessorySheet}")`);
 badges=createBadges({store,customization,bus:worldEventBus,total:()=>sailing.snapshot().totalSailingSeconds,config:typeof __DEV__!=='undefined'&&__DEV__&&fastSailing?{first_voyage:30,old_sailor:120,starry_night:10}:{},onChange:()=>showcase?.refreshBadges()});
 if(typeof __DEV__!=='undefined'&&__DEV__){window.debugUnlockBadge=id=>badges.unlockBadge(id,{sourceEventId:'debug'});window.emitWorldEvent=worldEventBus.emitWorldEvent;}
 const debugPacing=()=>({...ENCOUNTER_PACING,windows:{ambient:[10,20],special:[20,40],wonder:[40,60]},firstAmbient:[10,15],quietAfterMajor:[5,8],wonderGap:45,cooldownScale:.01});
-encounterDirector=createEncounterDirector({store,bus:worldEventBus,unlockBadge:badges.unlockBadge,shipName:()=>customization.data.name,config:fastEncounters?debugPacing():ENCOUNTER_PACING});
+encounterDirector=createEncounterDirector({store,bus:worldEventBus,shipName:()=>customization.data.name,config:fastEncounters?debugPacing():ENCOUNTER_PACING});
+worldEventBus.subscribe(type=>{if(type==='encounter_completed')showcase?.refreshAccessories();});
 function encounterEnvironment(env){return {...env,aurora:effects.waterGlow.value,auroraDueIn:env.auroraAllowed?env.auroraAt-env.worldTime:Infinity};}
 if(typeof __GM__!=='undefined'&&__GM__){
  const controls=document.querySelector('#gm-controls'),select=document.querySelector('#gm-event'),button=document.querySelector('#gm-trigger');controls.hidden=false;

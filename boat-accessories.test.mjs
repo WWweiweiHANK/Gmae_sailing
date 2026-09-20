@@ -5,12 +5,22 @@ import {createBoatModel} from './boat-model.mjs';
 import {createGameSave,GAME_SAVE_KEY} from './game-save.mjs';
 let accessories={};try{accessories=await import('./boat-accessories.mjs');}catch{}
 
+test('event fittings require ownership, default fittings remain free, and GM does not grant rewards',()=>{
+ const disk=new Map(),storage={getItem:k=>disk.get(k)??null,setItem:(k,v)=>disk.set(k,v)},store=createGameSave(storage),custom={data:store.read().shipCustomization,update(p){Object.assign(this.data,p);}},equipment=accessories.createAccessoryEquipment({store,customization:custom});
+ assert.equal(equipment.equip('charm','dolphin-charm'),'locked');assert.equal(equipment.equip('charm','aurora-crystal'),'equipped');
+ store.save({ownedSouvenirs:['dolphin_charm']});assert.equal(equipment.equip('charm','dolphin-charm'),'equipped');
+ const gm=accessories.createAccessoryEquipment({store,customization:custom,preview:true});assert.equal(gm.equip('charm','pink-dolphin'),'equipped');assert.deepEqual(store.read().ownedSouvenirs,['dolphin_charm']);
+ const saved=createGameSave(storage).read();assert.deepEqual(saved.ownedSouvenirs,['dolphin_charm']);
+ storage.setItem(GAME_SAVE_KEY,JSON.stringify({version:7,shipCustomization:{accessories:{deck:'polar-bear'}},ownedSouvenirs:['whale_tail_charm'],sailingData:{points:73}}));
+ const legacy=createGameSave(storage).read();assert.ok(legacy.ownedSouvenirs.includes('ice_bear_charm'));assert.ok(legacy.ownedSouvenirs.includes('whale_tail_charm'));assert.equal(legacy.sailingData.points,73);
+});
+
 test('retired fittings fall back without losing retained equipment or voyage progress',()=>{
  const disk=new Map([[GAME_SAVE_KEY,JSON.stringify({version:7,shipCustomization:{name:'晚风号',skinId:'rounded',accessories:{flag:'bunting',deck:'lighthouse',roof:'plant',chimney:'chimney-orange',charm:'pink-dolphin',lifering:'snowflake',nameplate:'plate-wood'}},sailingData:{points:119,totalSailingSeconds:5000}})]]);
  const store=createGameSave({getItem:k=>disk.get(k)??null,setItem:(k,v)=>disk.set(k,v)}),saved=store.read();
  assert.deepEqual(saved.shipCustomization.accessories,{flag:'bunting',deck:null,roof:null,chimney:'chimney-skin',charm:'pink-dolphin',lifering:'snowflake',nameplate:'plate-wood'});
  assert.equal(saved.shipCustomization.name,'晚风号');assert.equal(saved.sailingData.points,119);assert.equal(saved.sailingData.totalSailingSeconds,5000);
- const custom={data:saved.shipCustomization,update(p){Object.assign(this.data,p);}},equipment=accessories.createAccessoryEquipment({store,customization:custom});
+ const custom={data:saved.shipCustomization,update(p){Object.assign(this.data,p);}},equipment=accessories.createAccessoryEquipment({store,customization:custom,preview:true});
  assert.equal(equipment.equip('deck','lighthouse'),'invalid');assert.equal(equipment.equip('charm','whale-tail'),'invalid');assert.equal(equipment.equip('deck','polar-bear'),'equipped');
 });
 
@@ -30,7 +40,7 @@ test('all nine boats retain seven fitted mounts and equipped objects when their 
 test('accessories save atomically by slot, survive old saves and never spend sailing points',()=>{
  assert.equal(typeof accessories.createAccessoryEquipment,'function');
  const disk=new Map([[GAME_SAVE_KEY,JSON.stringify({version:6,shipCustomization:{name:'晚风号',skinId:'tall'},sailingData:{points:119}})]]),storage={getItem:k=>disk.get(k)??null,setItem:(k,v)=>disk.set(k,v)},store=createGameSave(storage);
- const custom={data:store.read().shipCustomization,update(p){Object.assign(this.data,p);}},equipment=accessories.createAccessoryEquipment({store,customization:custom});
+ const custom={data:store.read().shipCustomization,update(p){Object.assign(this.data,p);}},equipment=accessories.createAccessoryEquipment({store,customization:custom,preview:true});
  assert.equal(custom.data.accessories.flag,'flag-red');assert.equal(custom.data.accessories.deck,null);
  assert.equal(equipment.equip('deck','polar-bear'),'equipped');assert.equal(equipment.equip('charm','aurora-crystal'),'equipped');assert.equal(equipment.equip('roof','polar-bear'),'equipped');
  const saved=createGameSave(storage).read();assert.equal(saved.shipCustomization.accessories.deck,'polar-bear');assert.equal(saved.shipCustomization.accessories.charm,'aurora-crystal');assert.equal(saved.shipCustomization.skinId,'tall');assert.equal(saved.shipCustomization.name,'晚风号');assert.equal(saved.sailingData.points,119);
@@ -56,10 +66,25 @@ test('remodeled assembly has a broad tapered funnel, readable souvenirs and a sh
  const size=slot=>new THREE.Box3().setFromObject(boat.mounts[slot]).getSize(new THREE.Vector3());
  assert.ok(size('chimney').x>=.36,'funnel must be broad, not a narrow tube');
  assert.ok(size('deck').y>=.38,'bear must remain recognizable beside the cabin');
- assert.ok(size('charm').y>=.27&&size('charm').y<=.46,'pendant should be visible without reaching the keel');
+ assert.ok(size('charm').y>=.35&&size('charm').y<=.53,'pendant should be visible without reaching the keel');
  const dolphin=boat.mounts.charm.getObjectByName('dolphin-body');assert.ok(dolphin?.isMesh,'dolphin has a continuous curved body');
  const ring=boat.mounts.lifering.children[0];const ray=new THREE.Raycaster(new THREE.Vector3(1,boat.mounts.lifering.position.y,-.13),new THREE.Vector3(-1,0,0));assert.equal(ray.intersectObject(ring,true).length,0,'lifebuoy has a true open center');
  const before=boat.mounts.charm.children[0].rotation.z;fittings.animate(0);assert.equal(boat.mounts.charm.children[0].rotation.z,before);
+});
+
+test('bunting stays tied to the mast and chimney across skin changes and animation',()=>{
+ const boat=createBoatModel(),fittings=accessories.createBoatAccessories(boat);
+ for(const skin of ['classic','rounded','tall','light','wide','speedy','square','explorer','gentle']){
+  boat.setSkin(skin);fittings.apply({...accessories.DEFAULT_ACCESSORIES,flag:'bunting'});fittings.animate(1);boat.ship.updateMatrixWorld(true);
+  const start=boat.mounts.flag.getObjectByName('bunting-start'),end=boat.mounts.flag.getObjectByName('bunting-end');
+  assert.ok(start&&end,'rope must expose both physical attachment points');
+  assert.ok(start.getWorldPosition(new THREE.Vector3()).distanceTo(boat.mounts.flag.localToWorld(new THREE.Vector3(0,.43,0)))<.001);
+  assert.ok(end.getWorldPosition(new THREE.Vector3()).distanceTo(boat.mounts.chimney.localToWorld(new THREE.Vector3(0,.68,-.035)))<.001,skin);
+  fittings.apply({...accessories.DEFAULT_ACCESSORIES,flag:'bunting',chimney:null});boat.ship.updateMatrixWorld(true);
+  const post=boat.mounts.flag.getObjectByName('bunting-rear-post');assert.equal(post.visible,true);
+  assert.ok(post.localToWorld(new THREE.Vector3(0,-.5,0)).distanceTo(boat.mounts.chimney.getWorldPosition(new THREE.Vector3()))<.001,'when funnel is removed, rear post rests on its support');
+  fittings.apply({...accessories.DEFAULT_ACCESSORIES,flag:'bunting'});assert.equal(post.visible,false);
+ }
 });
 
 test('retained whale emblem has eyes outside its head on both sides',()=>{

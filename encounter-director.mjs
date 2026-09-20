@@ -1,5 +1,5 @@
 import {encounterCatalog,ENCOUNTER_PACING as DEFAULT,QUIET_JOURNAL_PACING as QUIET,sanitizeEncounters,souvenirIds} from './encounter-catalog.mjs';
-export function createEncounterDirector({store,bus,unlockBadge,shipName,random=Math.random,now=()=>new Date(),config=DEFAULT}){
+export function createEncounterDirector({store,bus,shipName,random=Math.random,now=()=>new Date(),config=DEFAULT}){
  const data=sanitizeEncounters(store.read()),state=data.encounterDirectorState,history=data.encounterHistory,slots=new Map();
  const range=a=>a[0]+random()*(a[1]-a[0]);let sinceSave=0,latestEnv=null,lastCompleted=null;
  for(const tier of ['ambient','special','wonder'])if(state.next[tier]===undefined)state.next[tier]=state.time+range(tier==='ambient'&&Object.keys(history).length<2?config.firstAmbient:config.windows[tier]);
@@ -37,16 +37,13 @@ export function createEncounterDirector({store,bus,unlockBadge,shipName,random=M
   if(a.preview){a.seen=true;return true;}
   const e=encounterCatalog.find(e=>e.id===id),old=history[id],at=now().toISOString();a.seen=true;a.firstTime=!old;a.seenCount=(old?.seenCount??0)+1;
   history[id]={firstSeenAt:old?.firstSeenAt??at,lastSeenAt:at,seenCount:a.seenCount,completedCount:old?.completedCount??0,persistentVisitorId:e.persistentVisitorId};state.lastSeenTime=state.time;persist();
-  if(e.badgeReward)a.badgeUnlocked=unlockBadge(e.badgeReward,{sourceEventId:'encounter:'+id+':'+a.startTime})==='unlocked';
-  if(e.souvenirReward)a.souvenirUnlocked=unlockSouvenir(e.souvenirReward);
-  if(e.badgeReward==='dolphin'||e.badgeReward==='whale')bus.emitWorldEvent(e.badgeReward+'_seen',{sourceEventId:'encounter:'+id+':'+a.startTime});
   bus.emitWorldEvent('encounter_seen',{encounterId:id,startTime:a.startTime,firstTime:a.firstTime,seenCount:a.seenCount});return true;
  }
  function endEncounter(id,interrupted=false){
   const a=[...slots.values()].find(a=>a.id===id);if(!a)return false;slots.delete(a.slot);
   if(a.preview)return true;
   if(a.slot==='major')state.quietUntil=state.time+range(config.quietAfterMajor);
-  if(a.seen){if(!interrupted)history[id].completedCount++;
+  if(a.seen){if(!interrupted){history[id].completedCount++;const reward=encounterCatalog.find(e=>e.id===id).souvenirReward;if(reward)a.souvenirUnlocked=unlockSouvenir(reward);}
    lastCompleted={encounterId:id,startTime:a.startTime,endTime:now().toISOString(),weather:a.weather,timeOfDay:a.timeOfDay,shipName:a.shipName,firstTime:a.firstTime,seenCount:a.seenCount,souvenirUnlocked:a.souvenirUnlocked,badgeUnlocked:a.badgeUnlocked,persistentVisitorId:a.persistentVisitorId,interrupted,logTemplate:encounterCatalog.find(e=>e.id===id).logTemplate};
    bus.emitWorldEvent(interrupted?'encounter_interrupted':'encounter_completed',lastCompleted);
   }persist();return true;

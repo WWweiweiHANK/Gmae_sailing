@@ -34,7 +34,7 @@ export function createShipShowcase({canvas,camera,controls,ship,customization,sk
  const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
  const journalView=createJournalView({journal,customization,canOpen:()=>phase==='open',onMode:()=>{drag=null;pressed=null;vYaw=0;vPitch=0;}});
  const tabs=[...dialog.querySelectorAll('.ship-tabs [role=tab]')];
- function tab(id){if(id!=='badges')acknowledgeBadges();for(const button of tabs){const active=button.dataset.tab===id;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;document.querySelector('#ship-'+button.dataset.tab).hidden=!active;}if(id==='badges'){refreshBadges();acknowledgeBadges();}}
+ function tab(id){if(id!=='badges')acknowledgeBadges();for(const button of tabs){const active=button.dataset.tab===id;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;document.querySelector('#ship-'+button.dataset.tab).hidden=!active;}if(id==='badges'){refreshBadges();acknowledgeBadges();}if(id==='accessories')refreshAccessories();}
  tabs.forEach((button,i)=>{button.addEventListener('click',()=>tab(button.dataset.tab));button.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const next=tabs[(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length];tab(next.dataset.tab);next.focus();}});});
  let noticeTimer=0;
  function feedback(message,temporary=false){clearTimeout(noticeTimer);notice.textContent=message;if(temporary)noticeTimer=setTimeout(()=>{if(notice.textContent===message)notice.textContent='';},1800);}
@@ -48,7 +48,7 @@ export function createShipShowcase({canvas,camera,controls,ship,customization,sk
    const icon=document.createElement('span');icon.className='accessory-thumb';icon.setAttribute('aria-hidden','true');
    if(item.thumb){icon.style.backgroundPosition=`${-item.thumb[0]*.23}px ${-(item.thumb[1]+(slot==='charm'?15:0))*.23}px`;}
    else{icon.classList.add('accessory-symbol');icon.textContent=item.id?.startsWith('plate')?'船名':item.id?'▥':'—';if(item.id)icon.style.color=item.id==='plate-wood'?'#aa835a':item.id==='plate-blue'?'#709bac':'#7f9394';}
-   const label=document.createElement('span');label.textContent=item.name;button.append(icon,label);button.addEventListener('click',()=>{const result=accessories.equip(slot,item.id);if(result==='save-failed'){feedback('未能保存装饰，请稍后重试。');return;}const focused=item.id??'none';refreshAccessories();accessoryOptions.querySelector(`[data-accessory="${focused}"]`).focus();feedback(item.id?'已安装'+item.name:'已腾出'+accessorySlots[slot]+'位置',true);});accessoryOptions.append(button);
+   const status=accessories.status(item.id),label=document.createElement('span'),state=document.createElement('small');label.textContent=item.name;state.textContent=item.id?status.label:'';button.title=status.source?'完成「'+status.source+'」后获得':item.name;button.setAttribute('aria-disabled',String(!status.available));button.append(icon,label,state);button.addEventListener('click',()=>{const result=accessories.equip(slot,item.id);if(result==='locked'){feedback('完成「'+status.source+'」见闻后，即可安装'+item.name);return;}if(result==='save-failed'){feedback('未能保存装饰，请稍后重试。');return;}const focused=item.id??'none';refreshAccessories();accessoryOptions.querySelector(`[data-accessory="${focused}"]`).focus();feedback(item.id?'已安装'+item.name:'已腾出'+accessorySlots[slot]+'位置',true);});accessoryOptions.append(button);
   }
  }
  slotSelect.addEventListener('change',refreshAccessories);
@@ -113,7 +113,7 @@ export function createShipShowcase({canvas,camera,controls,ship,customization,sk
  for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>{drag=null;pressed=null;vYaw=0;vPitch=0;});
  window.addEventListener('blur',()=>{drag=null;pressed=null;vYaw=0;vPitch=0;});
  refresh();
- return {open,close,hit,refreshBadges(){if(phase!=='sailing'&&!badgePanel.hidden)refreshBadges();},get busy(){return phase!=='sailing';},get inspecting(){return phase==='open';},get blend(){return progress*progress*(3-2*progress);},snapshot:()=>({phase,progress,yaw,pitch}),
+ return {open,close,hit,refreshAccessories(){if(phase!=='sailing'&&!document.querySelector('#ship-accessories').hidden)refreshAccessories();},refreshBadges(){if(phase!=='sailing'&&!badgePanel.hidden)refreshBadges();},get busy(){return phase!=='sailing';},get inspecting(){return phase==='open';},get blend(){return progress*progress*(3-2*progress);},snapshot:()=>({phase,progress,yaw,pitch}),
   update(dt){
    if(phase==='sailing')return;
    const step=dt/(reduceMotion?.12:.85);progress=THREE.MathUtils.clamp(progress+(phase==='closing'?-step:step),0,1);

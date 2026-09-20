@@ -4,6 +4,20 @@ import {createGameSave,GAME_SAVE_KEY} from './game-save.mjs';
 import {createWorldEventBus} from './badges.mjs';
 let module={};try{module=await import('./encounter-director.mjs');}catch{}
 const day={period:'day',weather:'clear',night:0,rain:0,shade:0,auroraDueIn:Infinity,aurora:0};
+
+test('one completed real encounter gives one retained decoration; interruption and GM give none',async()=>{
+ const {encounterCatalog,sanitizeEncounters}=await import('./encounter-catalog.mjs');
+ assert.equal(encounterCatalog.filter(e=>e.souvenirReward).length,9);
+ assert.equal(new Set(encounterCatalog.map(e=>e.souvenirReward).filter(Boolean)).size,9);
+ assert.ok(encounterCatalog.every(e=>!e.badgeReward));
+ const {director:d,store,events}=setup();d.startEncounter('dolphin_companion',day);d.confirmVisible('dolphin_companion');
+ assert.deepEqual(store.read().ownedSouvenirs,[]);d.endEncounter('dolphin_companion',true);assert.deepEqual(store.read().ownedSouvenirs,[]);
+ d.startEncounter('dolphin_companion',day,{ignoreTiming:true});d.confirmVisible('dolphin_companion');d.endEncounter('dolphin_companion');assert.deepEqual(store.read().ownedSouvenirs,['dolphin_charm']);
+ assert.equal(events.some(e=>e.type==='dolphin_seen'),false);
+ d.startEncounter('dolphin_companion',day,{ignoreTiming:true});d.confirmVisible('dolphin_companion');d.endEncounter('dolphin_companion');assert.equal(events.at(-1).souvenirUnlocked,false);
+ d.previewEncounter('pink_dolphin',day);d.confirmVisible('pink_dolphin');d.endEncounter('pink_dolphin');assert.deepEqual(store.read().ownedSouvenirs,['dolphin_charm']);
+ assert.deepEqual(sanitizeEncounters({ownedSouvenirs:['whale_tail_charm','migration_feather','tiny_lighthouse']}).ownedSouvenirs,['whale_tail_charm','migration_feather','tiny_lighthouse']);
+});
 function setup(storage){const disk=new Map();storage??={getItem:k=>disk.get(k)??null,setItem:(k,v)=>disk.set(k,v)};const store=createGameSave(storage),bus=createWorldEventBus(),events=[];bus.subscribe((type,data)=>events.push({type,...data}));assert.equal(typeof module.createEncounterDirector,'function');const director=module.createEncounterDirector({store,bus,random:()=>.3,now:()=>new Date('2026-09-19T12:00:00Z'),shipName:()=> '晚风号',unlockBadge:()=> 'unlocked'});return {director,store,storage,events};}
 test('director enforces environment, chain, slots and quiet spacing even on manual start',()=>{
  const {director:d}=setup();assert.equal(d.startEncounter('meteor_shower',day),'conditions');assert.equal(d.startEncounter('massive_bird_migration',{...day,weather:'storm'}),'conditions');assert.equal(d.startEncounter('giant_whale_surface',day),'prerequisite');
@@ -29,7 +43,7 @@ test('automatic schedule has quiet windows, avoids immediate repeats and keeps l
 });
 test('souvenirs unlock once and old saves retain all existing progression',()=>{
  const {director:d,store,storage}=setup();assert.equal(d.unlockSouvenir('not_real'),false);assert.equal(d.unlockSouvenir('pink_dolphin_charm'),true);assert.equal(d.unlockSouvenir('pink_dolphin_charm'),false);assert.deepEqual(store.read().ownedSouvenirs,['pink_dolphin_charm']);
- storage.setItem(GAME_SAVE_KEY,JSON.stringify({version:3,shipCustomization:{name:'晚风号',hullColor:'#eddb9b'},sailingData:{points:85,totalSailingSeconds:500},ownedColors:['yellow']}));const migrated=createGameSave(storage).read();assert.equal(migrated.version,7);assert.equal(migrated.sailingData.points,85);assert.equal(migrated.shipCustomization.name,'晚风号');assert.deepEqual(migrated.encounterHistory,{});
+ storage.setItem(GAME_SAVE_KEY,JSON.stringify({version:3,shipCustomization:{name:'晚风号',hullColor:'#eddb9b'},sailingData:{points:85,totalSailingSeconds:500},ownedColors:['yellow']}));const migrated=createGameSave(storage).read();assert.equal(migrated.version,8);assert.equal(migrated.sailingData.points,85);assert.equal(migrated.shipCustomization.name,'晚风号');assert.deepEqual(migrated.encounterHistory,{});
 });
 test('all ten visual handlers reuse their objects and return to a quiet scene after cleanup',async()=>{
  const THREE=await import('three'),{createVoyageEffects}=await import('./scene-effects.mjs');let visuals={};try{visuals=await import('./encounter-visuals.mjs');}catch{}assert.equal(typeof visuals.createEncounterVisuals,'function');

@@ -1,0 +1,4 @@
+{
+  "checks": "GM absent / locked click gives source hint / default crystal free / owned dolphin equips and survives reload",
+  "errors": []
+}

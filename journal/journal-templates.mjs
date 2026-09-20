@@ -1,6 +1,8 @@
+import {accessoryRewards} from '../accessory-rewards.mjs';
 export const periodNames={day:'白昼',dusk:'黄昏',night:'夜晚',dawn:'晨光'};
 export const weatherNames={clear:'晴',overcast:'阴',drizzle:'小雨',storm:'风雨'};
 export const souvenirNames={dolphin_charm:'海豚纪念挂件',pink_dolphin_charm:'粉色海豚挂件',whale_tail_charm:'鲸尾纪念挂件',migration_feather:'迁徙的羽毛',glowing_sea_glass:'微光海玻璃',meteor_star_charm:'流星挂件',ice_bear_charm:'浮冰小熊',tiny_lighthouse:'小小灯塔'};
+for(const reward of accessoryRewards)if(!souvenirNames[reward.souvenir])souvenirNames[reward.souvenir]=reward.name;
 // Each pair is a title and prose. Repeats cycle deliberately so adjacent visits differ.
 export const journalTemplateCatalog={
  underwater_fish_school:[['船下的银光','一群银色小鱼从{ship}下方游过。\n\n它们转弯的时候，海水里闪过一阵细碎的光。'],['短暂的同行','小鱼们又经过了船底。\n\n{ship}慢慢向前，它们很快游向了更深的蓝色里。']],

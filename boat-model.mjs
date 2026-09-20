@@ -63,11 +63,13 @@ export function createBoatModel(initial='classic'){
   mounts.lifering.userData.sideOffset=cw/2+.05;
   mounts.nameplate.position.set(0,.318,-.04);
   mounts.nameplate.userData.sideOffset=w*.968+.022;
-  mounts.charm.position.set(-w-.085,.82,-.91);mounts.charm.rotation.y=-Math.PI/2;
+  mounts.charm.position.set(-w-.06,.80,-.78);mounts.charm.rotation.y=-Math.PI/2;
   mounts.roof.position.set(.10,highest,-.23);
   for(const slot of ['lifering','nameplate'])for(const child of mounts[slot].children)if(child.userData.side)child.position.x=child.userData.side*mounts[slot].userData.sideOffset;
   // A continuous, raised rail follows each hull outline, including the curved bow.
   const railing=outline.map(([x,z])=>[x*.94,.82,z*.95]);for(let i=0;i<railing.length;i++){rod(railing[i],railing[(i+1)%railing.length],.018,materials.rail);rod([railing[i][0],.62,railing[i][2]],railing[i],.014,materials.rail);}
+  const railA=railing[1],railB=railing[2],hookZ=mounts.charm.position.z,t=(hookZ-railA[2])/(railB[2]-railA[2]);
+  rod([railA[0]+(railB[0]-railA[0])*t,.82,hookZ],[mounts.charm.position.x,.82,hookZ],.012,materials.rail).name='charm-hook';
   for(const sign of [-1,1]){
    for(let i=0;i<4;i++){const z=-.56+i*.30;const rim=add(primitives.port,materials.ring,sign*(w*.99+.004),.49,z,.037,.024,.037);rim.rotation.z=Math.PI/2;const glass=add(primitives.port,materials.port,sign*(w*.99+.018),.49,z,.027,.026,.027);glass.rotation.z=Math.PI/2;}
    const anchor=add(primitives.ring,materials.rail,sign*w*.79,.44,.94,.36,.36,.36);anchor.rotation.y=sign*Math.PI*.36;

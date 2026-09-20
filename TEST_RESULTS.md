@@ -1,5 +1,13 @@
 # 实际验证记录 · 2026-09-17
 
+## 2026-09-21 字体、图标与翻页修复
+
+- 新增 qa/journal-turning.cjs：先复现翻动纸张两面页码为 02／02 的失败，修复后验证向前 02／03、向后 03／02。另验证封面背面对应当前左页、开封面前不提前显示固定左页、封面旋转不淡出、完成后无残留控件副本、阅读时平面字体、隐藏外侧页叠边框、九款皮肤无常驻名称且保留无障碍名称；小窗口与减少动画开合通过。
+- 最终文字／翻页改动通过 94 项逻辑测试与 qa/unified-journal.cjs 全流程：改名、独立船预览、九款皮肤、纪念品、纸页选择／写画、长文分页、390／560 宽度、静音、鲸鱼跨页、30 次开合。无 pageerror，几何／纹理／程序维持 52／3／17，DOM 与 Audio 实例未增长。此短测不能代替长期挂机验证。
+- qa/book-before-opening.png、book-before-type.png 留存修改前状态；book-opening-fixed.png、book-type-fixed.png、book-icons-fixed.png、book-small-fixed.png 为修改后检查图，并更新统一流程截图。开合关键帧已目视核对，阅读状态正文更清晰，皮肤与挂件无叠加名称，打开后无外围叠层框。
+- 网页预览／QA／GM 桌面前端构建通过。最终追加一条纯 CSS 横线标记，使“不佩戴徽章”在无文字列表中也可见；专项验证可见、可点击，未因此重跑整套业务测试。存档结构不变。
+- 最终 Tauri GM release 构建通过（1m25s），交付 outputs/Tiny-Tides-GM-2026-09-21-journal-fix.exe，7140352 字节，SHA256 5AC4613DC0B33B26AC87C5F443E0F75AEFCD569B7447288CCFE3840756828025。旧包保留，本轮未启动交付 EXE 做原生交互回归。
+
 ## 2026-09-21 海洋插画封面
 
 - Headless Edge 在隔离浏览器中检查 1100×800 与 560×540：原图以 PNG data URL 打包、600×600 解码成功、封面实际尺寸非零；两种尺寸的打开／合上和 Escape 返回通过，无 pageerror。截图 qa/journal-cover-desktop.png、journal-cover-small.png 已目视检查；journal-cover-detail.png 是临时放大封面用于核对原图的检查截图。

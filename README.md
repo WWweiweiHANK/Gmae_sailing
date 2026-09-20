@@ -2,7 +2,7 @@
 
 在原 Three.js 0.180.0 项目上增量接入 Tauri 2。轮船、海洋截面、海豚、多边形海鸥和四层极光沿用原场景；网页与桌宠使用同一前端和一个渲染器。
 
-当前开发版本将船只档案、九款整船皮肤、饰品和叙事日志统一放进海洋旁的常驻航海手账，使用 `npm run preview:gm` 保留 GM 工具预览。本次桌面交付为 `outputs/Tiny-Tides-GM-2026-09-21-cover.exe`，旧 EXE 与安装包单独保留；源码构建与交付包独立维护。实测与未测项见 [TEST_RESULTS.md](TEST_RESULTS.md)。启动新版前先从托盘退出旧版；应用保留单实例限制，重复启动会转到旧实例。
+当前开发版本将船只档案、九款整船皮肤、饰品和叙事日志统一放进海洋旁的常驻航海手账，使用 `npm run preview:gm` 保留 GM 工具预览。本次桌面交付为 `outputs/Tiny-Tides-GM-2026-09-21-journal-fix.exe`，旧 EXE 与安装包单独保留；源码构建与交付包独立维护。实测与未测项见 [TEST_RESULTS.md](TEST_RESULTS.md)。启动新版前先从托盘退出旧版；应用保留单实例限制，重复启动会转到旧实例。
 
 ## 项目结构与修改入口
 
@@ -287,3 +287,5 @@ npm run desktop:build:gm
 
 `npm run qa` 后执行 `node qa/unified-journal.cjs`（需要可用 Playwright / Edge），使用隔离浏览器来源，不写玩家预览存档。
 原生测试若已有桌宠在运行，可先用 `npm run tauri -- build --no-bundle --config qa/tauri.isolated.conf.json` 构建独立标识测试程序，再运行 `node qa/gm-exe.cjs`；该配置仅用于测试，不作为正式交付。真正交付仍用 `npm run desktop:build:gm`，正常存档标识不变。
+
+手账外观选项以图案显示，悬停可查看名称；正文使用清晰的系统字体。打开时封面绕书脊翻开，阅读状态不显示外侧叠层边框。

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {boatSkin} from './boat-skins.mjs';
+export const BOAT_SIZE={default:.8,min:.5,max:1};
 
 // One moving root, one material set and pooled primitives. Only skin-specific hull/cabin
 // surfaces are replaced and disposed; the nameplate, light and encounter anchors survive.
@@ -14,9 +15,18 @@ export function createBoatModel(initial='classic'){
  const shipLight=new THREE.PointLight(0xffc67f,0,2.2,2);ship.add(shipLight);
  const windowDay=new THREE.Color('#91b7cc'),windowNight=new THREE.Color('#dcc9a6'),lampLevel={day:0,dusk:.38,night:1,dawn:.10};
  materials.lamp.emissiveIntensity=0;materials.glass.emissiveIntensity=0;materials.warm.emissiveIntensity=0;
- function updateLighting({fromPeriod,period,periodBlend}){
+ // Warm gradients in the existing panes; no bloom pass or extra lights.
+ materials.glass.emissive.set('#ffe4b5');
+ materials.glass.onBeforeCompile=shader=>{
+  shader.vertexShader='varying float vPaneHeight;\n'+shader.vertexShader;
+  shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvPaneHeight=position.y;');
+  shader.fragmentShader='varying float vPaneHeight;\n'+shader.fragmentShader;
+  shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance*=mix(vec3(1.,.65,.32),vec3(1.,.96,.82),smoothstep(-.5,.5,vPaneHeight));');
+ };
+ function setSize(value){const size=Number.isFinite(value)?THREE.MathUtils.clamp(value,BOAT_SIZE.min,BOAT_SIZE.max):BOAT_SIZE.default;ship.scale.setScalar(size);return size;}
+ function updateLighting({fromPeriod,period,periodBlend},time=0){
   const from=lampLevel[fromPeriod]??0,to=lampLevel[period]??0,level=from+(to-from)*THREE.MathUtils.clamp(periodBlend,0,1);
-  materials.glass.color.lerpColors(windowDay,windowNight,level);materials.glass.emissiveIntensity=level*.22;
+  materials.glass.color.lerpColors(windowDay,windowNight,level);materials.glass.emissiveIntensity=level*(.86+.06*Math.sin(time*.38));
   materials.lamp.emissiveIntensity=level*.65;materials.warm.emissiveIntensity=level*.10;
   shipLight.position.copy(mounts.flag.position);shipLight.position.y+=.565;
   shipLight.intensity=mounts.flag.children.length?level*.22:0;
@@ -87,5 +97,5 @@ export function createBoatModel(initial='classic'){
   return true;
  }
  setSkin(initial);
- return {ship,mounts,materials,shipLight,setSkin,updateLighting,get skinId(){return skinId;}};
+ return {ship,mounts,materials,shipLight,setSkin,setSize,updateLighting,get skinId(){return skinId;}};
 }

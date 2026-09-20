@@ -98,6 +98,11 @@ waterMat.onBeforeCompile=shader=>{shader.uniforms.uRain=waterRain;shader.uniform
 `);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=auroraWaterLight(vSeaPosition,uSeaTime)*uAuroraGlow;\ntotalEmissiveRadiance+=encounterBiolight(vSeaPosition,uSeaTime);');};
 const water=mesh(wg,waterMat);water.castShadow=false;
 const boat=createBoatModel(store.read().shipCustomization.skinId),ship=boat.ship;scene.add(ship);
+const sizeSlider=document.querySelector('#boat-size'),sizeValue=document.querySelector('#boat-size-value');
+function applyBoatSize(value){const size=boat.setSize(value);sizeSlider.value=String(Math.round(size*100));sizeValue.value=sizeSlider.value+'%';}
+let savedBoatSize;try{const saved=localStorage.getItem('tiny-tides-boat-size-v1');if(saved!==null)savedBoatSize=Number(saved);}catch{}
+applyBoatSize(savedBoatSize);
+sizeSlider.addEventListener('input',()=>{applyBoatSize(Number(sizeSlider.value)/100);try{localStorage.setItem('tiny-tides-boat-size-v1',String(ship.scale.x));}catch{document.querySelector('#ship-notice').textContent='大小已应用，但本机保存失败。';}});
 const {hull:hullMat,roof:roofMat,stripe:stripeMat}=boat.materials;
 const wingMat=mat(0xf9fbf5,{side:THREE.DoubleSide});const wingTipMat=mat(0xb0c1c6,{side:THREE.DoubleSide});const birds=[];
 for(let i=0;i<4;i++){
@@ -112,7 +117,7 @@ const moonGroup=new THREE.Group();moonGroup.position.set(-3.3,4.4,-2.6);scene.ad
 const moonShape=new THREE.Shape();moonShape.moveTo(.18,.65);moonShape.bezierCurveTo(-.65,.65,-.88,-.4,-.13,-.68);moonShape.bezierCurveTo(.38,-.85,.81,-.42,.76,-.12);moonShape.bezierCurveTo(.1,-.45,-.22,.25,.18,.65);
 const moon=mesh(new THREE.ExtrudeGeometry(moonShape,{depth:.14,bevelEnabled:true,bevelSize:.025,bevelThickness:.025,bevelSegments:1,curveSegments:15}),new THREE.MeshStandardMaterial({color:0xffefbc,emissive:0xffd487,emissiveIntensity:.8,roughness:.7}),moonGroup);moon.rotation.y=.45;
 const effects=createVoyageEffects(scene);
-const wake=createWake(scene);
+const wake=createWake(scene,200,ship.scale.x);
 const encounterVisuals=createEncounterVisuals({scene,ship,dolphinPod:effects.dolphinPod,waterTime,waterRain,waveStrength});
 const wakeWhite=new THREE.Color(0xf4ffff),wakeGlow=new THREE.Color(0x68e9cb);
 const rainCount=1100,rainArray=new Float32Array(rainCount*6),rainMeta=[];for(let i=0;i<rainCount;i++){const x=(Math.random()-.5)*10,z=(Math.random()-.5)*7.3;rainMeta.push({x,z,y:Math.random()*5.2,speed:4+Math.random()*2});}
@@ -198,7 +203,7 @@ document.addEventListener('freeze',suspendPage);document.addEventListener('resum
 canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();contextLost=true;syncScheduler();showError('图形上下文已暂停；恢复后自动继续。');});
 canvas.addEventListener('webglcontextrestored',()=>{contextLost=false;document.querySelector('#error').hidden=true;syncScheduler();});
 let latestEnvironment=environment.snapshot();
-function report(){return {...monitor.report(),environment:latestEnvironment,shipLighting:{point:boat.shipLight.intensity,lamp:boat.materials.lamp.emissiveIntensity,windows:boat.materials.glass.emissiveIntensity},encounters:encounterDirector?.snapshot(),paused:!active(),camera:cameraRecord(),audio:{requested:nativeState.settings.sound,playing:ambience.enabled,loaded:ambience.loaded},rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,ownedColors:store.read().ownedColors,ownedBadges:store.read().ownedBadges,badgeProgress:badges.progress(),seenBadgeNotifications:store.read().seenBadgeNotifications,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
+function report(){return {...monitor.report(),environment:latestEnvironment,boatSize:ship.scale.x,shipLighting:{point:boat.shipLight.intensity,lamp:boat.materials.lamp.emissiveIntensity,windows:boat.materials.glass.emissiveIntensity},encounters:encounterDirector?.snapshot(),paused:!active(),camera:cameraRecord(),audio:{requested:nativeState.settings.sound,playing:ambience.enabled,loaded:ambience.loaded},rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,ownedColors:store.read().ownedColors,ownedBadges:store.read().ownedBadges,badgeProgress:badges.progress(),seenBadgeNotifications:store.read().seenBadgeNotifications,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
 let lastAlpha=null,diagnosticAt=0,startupRecorded=false;
 if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'get_ocean_state',title:'查看桌宠状态与实测性能',description:'只读场景状态、帧率、CPU提交时间及资源数量。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:report});}
 if(typeof __DEV__!=='undefined'&&__DEV__&&fastSailing&&document.modelContext?.registerTool)document.modelContext.registerTool({name:'debug_badge_event',title:'测试存档：触发徽章事件',description:'仅独立开发存档可用；模拟体验事件或直接解锁徽章，正常存档和正式包没有此入口。',inputSchema:{type:'object',properties:{type:{type:'string'},badgeId:{type:'string'}},additionalProperties:false},execute:({type,badgeId})=>({result:badgeId?badges.unlockBadge(badgeId,{sourceEventId:'debug'}):worldEventBus.emitWorldEvent(type,{sourceEventId:'debug-event'}),ownedBadges:store.read().ownedBadges})});
@@ -226,7 +231,7 @@ function frame(now){
  const pos=route(travelTime),next=route(travelTime+.12),heading=Math.atan2(next.x-pos.x,next.z-pos.z);const dx=Math.sin(heading),dz=Math.cos(heading);ship.position.set(pos.x,wave(pos.x,pos.z,t)+.05,pos.z);ship.rotation.set((wave(pos.x-dx*.6,pos.z-dz*.6,t)-wave(pos.x+dx*.6,pos.z+dz*.6,t))*.42,heading,(wave(pos.x+dz*.3,pos.z-dx*.3,t)-wave(pos.x-dz*.3,pos.z+dx*.3,t))*.45);
  encounterDirector.advance(worldDt,encounterEnvironment(env),!nativeState.paused);encounterVisuals.update(encounterDirector.active(),t,wave);
  wake.mesh.material.color.lerpColors(wakeWhite,wakeGlow,encounterVisuals.bio.value);
- wake.update(t,worldDt,wave,travelTime,!nativeState.paused);showcase.update(dt);customization.animate(dt,worldDt);
+ wake.update(t,worldDt,wave,travelTime,!nativeState.paused,ship.scale.x);showcase.update(dt);customization.animate(dt,worldDt);
  birds.forEach(({g,wings,phase},i)=>{
   const mode=env.period==='night'||env.weather==='storm'?'night':env.weather==='clear'?'sunny':'rainy';if(env.stormWarning){g.userData.fade=(g.userData.fade??1)*Math.exp(-dt*1.5);g.traverse(p=>{if(p.isMesh)p.material.opacity=g.userData.fade;});g.visible=g.userData.fade>.005;}else updateGullVisibility(g,mode,i,dt);if(!g.visible)return;
   const a=t*.18+phase;g.position.set(pos.x*.34+Math.sin(a)*(1.4+i*.25),2.5+i*.34+Math.sin(t*.7+phase)*.25-rainMix*.15,pos.z*.25+Math.cos(a)*(1+i*.25));g.rotation.y=a+Math.PI/2;g.rotation.z=Math.sin(a)*.1;
@@ -234,7 +239,7 @@ function frame(now){
   wings[0].rotation.z=Math.sin(t*2.4+phase)*.18;wings[1].rotation.z=-Math.sin(t*2.4+phase)*.18;
  });
  moonGroup.scale.setScalar(Math.max(.001,nightMix*.56));moonGroup.rotation.y=Math.sin(t*.12)*.1;
- boat.updateLighting(env);
+ boat.updateLighting(env,t);
  rainMat.opacity=Math.min(.48,rainMix*.6);rainGeo.setDrawRange(0,Math.floor(150+rainMix*950)*2);rain.visible=rainMix>.005;
  if(rain.visible){for(let i=0;i<rainCount;i++){const r=rainMeta[i];r.y-=dt*r.speed*(.7+rainMix*.9);if(r.y<.1)r.y=.1+((r.y-.1)%5.1+5.1)%5.1;const k=i*6;rainArray[k]=r.x;rainArray[k+1]=r.y;rainArray[k+2]=r.z;rainArray[k+3]=r.x-.025-rainMix*.12;rainArray[k+4]=r.y+.12+rainMix*.18;rainArray[k+5]=r.z;}rainGeo.attributes.position.needsUpdate=true;}
  ripples.forEach(r=>{const a=(t*.65+r.userData.phase)%1;r.visible=rain.visible;if(!r.visible)return;r.scale.setScalar(.2+a*1.5);r.material.opacity=rainMix*(1-a)*.4;r.position.y=.025+wave(r.position.x,r.position.z,t);});

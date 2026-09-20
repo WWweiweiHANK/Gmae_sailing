@@ -14,7 +14,7 @@ export function createShowcaseCamera(camera,controls){
  function restore(){camera.position.copy(saved.position);controls.target.copy(saved.target);camera.lookAt(controls.target);controls.enabled=saved.enabled;}
  camera.position.copy(saved.position);controls.target.copy(saved.target);camera.lookAt(controls.target);
  return {restore,update(ship,available,yaw,pitch,blend,journalBlend=0,compact=false,zoom=1){
-  focus.copy(ship.position);focus.y+=1;
+  focus.copy(ship.position);focus.y+=ship.scale.y;
   const halfFov=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
   const distance=Math.max(1.9/(halfFov*available),1.8/(halfFov*camera.aspect))*(1+journalBlend*.45)*zoom;
   destination.setFromSphericalCoords(distance,THREE.MathUtils.clamp(phi+pitch,.25,1.30),theta+yaw);

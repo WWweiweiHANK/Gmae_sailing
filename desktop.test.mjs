@@ -61,6 +61,17 @@ test('ship appearance rejects damaged saves, locked badges and overwide names',a
  assert.deepEqual(sanitizeShip(JSON.parse(JSON.stringify(changed))),changed);assert.equal(changed.equippedBadge,'whale');
 });
 
+test('wake emission and foam size follow the boat scale without reallocating its pool',async()=>{
+ const THREE=await import('three'),{createWake}=await import('./wake-pool.mjs'),{route}=await import('./motion.mjs');
+ const a=createWake(new THREE.Scene(),200,1),b=createWake(new THREE.Scene(),200,.5);
+ for(const wake of [a,b])wake.update(40,25,()=>0,15,false);
+ a.update(40.1,.1,()=>0,15.1,true,1);b.update(40.1,.1,()=>0,15.1,true,.5);
+ const opacity=a.mesh.geometry.getAttribute('instanceOpacity'),i=opacity.array.findIndex(v=>v>0),ma=new THREE.Matrix4(),mb=new THREE.Matrix4();
+ a.mesh.getMatrixAt(i,ma);b.mesh.getMatrixAt(i,mb);
+ const origin=route(15.1),pa=new THREE.Vector3().setFromMatrixPosition(ma),pb=new THREE.Vector3().setFromMatrixPosition(mb);
+ assert.ok(Math.abs(Math.hypot(pb.x-origin.x,pb.z-origin.z)/Math.hypot(pa.x-origin.x,pa.z-origin.z)-.5)<1e-5);
+ assert.ok(Math.abs(new THREE.Vector3().setFromMatrixScale(mb).x/new THREE.Vector3().setFromMatrixScale(ma).x-.5)<1e-5);
+});
 test('stationary ship emits no wake and resumes at the frozen route, without a backlog',async()=>{
  const THREE=await import('three'),{createWake}=await import('./wake-pool.mjs');
  const wake=createWake(new THREE.Scene()),positions=wake.mesh.instanceMatrix;

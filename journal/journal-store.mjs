@@ -10,7 +10,12 @@ export function sanitizeJournal(value={}){
   ids.add(e.id);journalEntries.push({read:typeof e.read==='boolean'?e.read:journalEntries.length<(value.journalState?.readCount??0),selectedIntentId:selected?.id??null,selectedIntentText:selected?(typeof e.selectedIntentText==='string'?e.selectedIntentText.slice(0,180):selected.journalText):null,selectedIntentAt:selected?e.selectedIntentAt:null,respondedToIntentId:intentById(e.respondedToIntentId)?.id??null,respondedToJournalEntryId:typeof e.respondedToJournalEntryId==='string'?e.respondedToJournalEntryId.slice(0,180):null,id:e.id.slice(0,180),timestamp:e.timestamp,date:typeof e.date==='string'?e.date.slice(0,10):e.timestamp.slice(0,10),timeOfDay:periodNames[e.timeOfDay]?e.timeOfDay:'day',weather:weatherNames[e.weather]?e.weather:'clear',encounterId:e.encounterId,title:e.title.slice(0,80),body:e.body.slice(0,1200),shipName:typeof e.shipName==='string'?e.shipName.slice(0,40):'小雨号',firstTime:e.firstTime===true,seenCount:Number.isSafeInteger(e.seenCount)&&e.seenCount>0?e.seenCount:1,badgeUnlocked:['dolphin','whale'].includes(e.badgeUnlocked)?e.badgeUnlocked:null,souvenirUnlocked:souvenirIds.includes(e.souvenirUnlocked)?e.souvenirUnlocked:null});
  }
  const read=value.journalState?.readCount;
- return {journalEntries,journalState:{opened:value.journalState?.opened===true,readCount:Number.isSafeInteger(read)?Math.max(0,Math.min(read,journalEntries.length)):0}};
+ const ui=value.journalUiState??{},annotationKeys=new Set();
+ const journalAnnotations=(Array.isArray(value.journalAnnotations)?value.journalAnnotations:[]).filter(a=>{
+  if(!a||typeof a.slot!=='string'||typeof a.item!=='string'||typeof a.text!=='string'||!date(a.timestamp)||(a.sourceJournalEntryId&&!ids.has(a.sourceJournalEntryId)))return false;
+  const key=[a.sourceJournalEntryId,a.slot,a.item].join(':');if(annotationKeys.has(key))return false;annotationKeys.add(key);return true;
+ }).map(a=>({sourceJournalEntryId:a.sourceJournalEntryId??null,slot:a.slot.slice(0,40),item:a.item.slice(0,80),text:a.text.slice(0,160),timestamp:a.timestamp}));
+ return {journalEntries,journalAnnotations,journalUiState:{lastOpenedPage:Number.isSafeInteger(ui.lastOpenedPage)?Math.max(0,ui.lastOpenedPage):0,lastOpenedSection:ui.lastOpenedSection==='voyage'?'voyage':'ship',unreadEntryIds:journalEntries.filter(e=>!e.read).map(e=>e.id)},journalState:{opened:value.journalState?.opened===true,readCount:Number.isSafeInteger(read)?Math.max(0,Math.min(read,journalEntries.length)):0}};
 }
 export function createJournal({store,bus,intents=null}){
  const data=sanitizeJournal(store.read()),listeners=new Set(),ids=new Set(data.journalEntries.map(e=>e.id));
@@ -24,6 +29,10 @@ export function createJournal({store,bus,intents=null}){
  });
  function markRead(index,includeClues=false){let touched=false;for(const entry of data.journalEntries.slice(index,index+2))if(!entry.read&&(includeClues||entry.selectedIntentId||!intentOptions(entry).length)){entry.read=true;touched=true;}if(touched){data.journalState.readCount=data.journalEntries.filter(e=>e.read).length;changed();}}
  return {save,markRead,entries:()=>structuredClone(data.journalEntries),unread:()=>data.journalEntries.filter(e=>!e.read).length,subscribe(fn){listeners.add(fn);return ()=>listeners.delete(fn);},
+  ui:()=>structuredClone(data.journalUiState),annotations:()=>structuredClone(data.journalAnnotations),
+  remember(page,section){data.journalUiState.lastOpenedPage=page;data.journalUiState.lastOpenedSection=section;save();},
+  markReadIds(ids,includeClues=false){let touched=false;for(const e of data.journalEntries)if(ids.includes(e.id)&&!e.read&&(includeClues||e.selectedIntentId||!intentOptions(e).length)){e.read=true;touched=true;}if(touched){data.journalUiState.unreadEntryIds=data.journalEntries.filter(e=>!e.read).map(e=>e.id);changed();}},
+  annotate(a){const next={...a,timestamp:new Date().toISOString()},at=data.journalAnnotations.findIndex(e=>e.sourceJournalEntryId===a.sourceJournalEntryId&&e.slot===a.slot&&e.item===a.item);if(at<0)data.journalAnnotations.push(next);else data.journalAnnotations[at]=next;changed();},
   selectIntent(id,intentId){const entry=data.journalEntries.find(e=>e.id===id);if(!entry)return 'invalid';const result=intents?.setIntent(intentId,{sourceEncounterId:entry.encounterId,sourceJournalEntryId:entry.id});
    if(result==='selected'){data.journalEntries=store.read().journalEntries;notify();}return result??'invalid';},
   open({latest=false,entryId=null}={}){const list=data.journalEntries,unread=list.map((e,i)=>!e.read?i:-1).filter(i=>i>=0);let index=entryId?list.findIndex(e=>e.id===entryId):-1;

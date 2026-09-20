@@ -1,0 +1,1 @@
+{"identifier":"com.tinytides.journal-qa","build":{"beforeBuildCommand":"npm run desktop:frontend:gm"}}

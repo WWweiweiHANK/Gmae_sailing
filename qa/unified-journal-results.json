@@ -1,0 +1,55 @@
+{
+  "date": "2026-09-20T17:04:31.820Z",
+  "checks": [
+    "persistent single book; ship click removed; 75% sailing and camera unchanged; inline name Enter/Escape; mileage; independent preview rotation",
+    "nine free skins and live shared preview; unknown ornaments hidden; annotation retained",
+    "new clue bookmark; prose choice; character writing then SVG drawing; backdrop close waits; choice survives",
+    "actual measured pagination retains long text; 560/390 widths and chapter navigation",
+    "journal respects mute",
+    "30 reduced-motion open/close cycles: stable DOM, Audio instances, geometries and textures",
+    "important whale encounter owns a full spread; keyboard Escape works after chapter jump"
+  ],
+  "errors": [],
+  "resources": {
+    "before": {
+      "timestamp": "2026-09-20T17:04:14.220Z",
+      "fps": 20.166120916859676,
+      "cpuMeanMs": 1.292079204379922,
+      "cpuP95Ms": 2.0999999940395355,
+      "calls": 214,
+      "triangles": 24352,
+      "geometries": 52,
+      "textures": 3,
+      "programs": 17,
+      "buffer": [
+        1100,
+        800
+      ],
+      "period": "day",
+      "weather": "clear",
+      "aurora": false,
+      "jsHeapBytes": 24300199,
+      "totalFrames": 302
+    },
+    "after": {
+      "timestamp": "2026-09-20T17:04:29.247Z",
+      "fps": 19.999600007999845,
+      "cpuMeanMs": 1.4809999945759773,
+      "cpuP95Ms": 2.2999999821186066,
+      "calls": 295,
+      "triangles": 30434,
+      "geometries": 52,
+      "textures": 3,
+      "programs": 17,
+      "buffer": [
+        1100,
+        800
+      ],
+      "period": "day",
+      "weather": "clear",
+      "aurora": false,
+      "jsHeapBytes": 19497139,
+      "totalFrames": 603
+    }
+  }
+}

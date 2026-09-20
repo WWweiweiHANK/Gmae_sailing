@@ -22,7 +22,7 @@ export const encounterCatalog=[
  {id:'meteor_shower',name:'流星雨',category:'SKY',tier:'wonder',weight:2,minDuration:28,maxDuration:40,cooldown:7200,conditions:{time:['night'],weather:['clear','overcast']},repeatPolicy:'rare',logTemplate:'第一颗流星之后，又有几束光划过小小的夜空。'},
  {id:'polar_bear_ice',name:'浮冰来客',category:'SURFACE',tier:'special',weight:1,minDuration:35,maxDuration:50,cooldown:3600,conditions:{time:['day','dawn'],weather:['clear','overcast']},repeatPolicy:'rare',logTemplate:'一只小北极熊趴在浮冰上，从海的边缘漂过。'},
  {id:'fog_lighthouse',name:'雾中灯塔',category:'ENVIRONMENT',tier:'special',weight:2,minDuration:40,maxDuration:60,cooldown:3600,conditions:{time:['night'],weather:['clear','overcast','drizzle']},repeatPolicy:'rare',logTemplate:'雾里出现了一座灯塔，暖光转过海面，又消失在雾中。'}
-].map(e=>({canCreateIntent:!!clues[e.id],intentOptions:clues[e.id]??[],intentMinSeen:e.id==='pink_dolphin'?2:1,followup:null,persistentVisitorId:null,...e,badgeReward:null,souvenirReward:accessoryRewards.find(r=>r.event===e.id)?.souvenir??null,visualHandler:e.id}));
+].map(e=>({journalLayout:e.id==='giant_whale_surface'?'full_spread':['meteor_shower','bioluminescent_sea','polar_bear_ice'].includes(e.id)?'large_doodle':'normal',canCreateIntent:!!clues[e.id],intentOptions:clues[e.id]??[],intentMinSeen:e.id==='pink_dolphin'?2:1,followup:null,persistentVisitorId:null,...e,badgeReward:null,souvenirReward:accessoryRewards.find(r=>r.event===e.id)?.souvenir??null,visualHandler:e.id}));
 // Historical log entries keep their original souvenir IDs and names.
 export const souvenirIds=[...new Set([...accessoryRewards.flatMap(r=>[r.souvenir,r.legacy].filter(Boolean)),'whale_tail_charm'])];
 const finite=v=>Number.isFinite(v)&&v>=0?v:0;

@@ -24,7 +24,7 @@ test('clues only, atomic permanent choice, overrides and old-save migration',()=
  for(const e of [event('dolphin_companion'),event('pink_dolphin'),event('pink_dolphin',2),event('giant_whale_shadow')])bus.emitWorldEvent('encounter_completed',e);
  const entries=j.entries();assert.equal(module.intentOptions(entries[0]).length,0);assert.equal(module.intentOptions(entries[1]).length,0);assert.equal(module.intentOptions(entries[2]).length,2);
  const id=entries[3].id;assert.equal(j.selectIntent(id,'follow_deep_creature'),'selected');assert.equal(j.selectIntent(id,'free_sailing'),'already-selected');assert.equal(intents.snapshot().currentIntentId,'follow_deep_creature');assert.ok(intents.modifiers().giant_whale_surface>1);
- const saved=createGameSave(storage).read();assert.equal(saved.journalEntries[3].selectedIntentText,'沿着那个影子离开的方向继续航行。');assert.equal(saved.version,9);
+ const saved=createGameSave(storage).read();assert.equal(saved.journalEntries[3].selectedIntentText,'沿着那个影子离开的方向继续航行。');assert.equal(saved.version,10);
  assert.equal(j.selectIntent(entries[2].id,'follow_pink_visitor'),'selected');assert.equal(store.read().voyageIntentHistory.at(-1).endedReason,'replaced');
  storage.setItem(GAME_SAVE_KEY,JSON.stringify({...saved,version:8,voyageIntentState:undefined}));assert.equal(createGameSave(storage).read().voyageIntentState.currentIntentId,'free_sailing');
 });

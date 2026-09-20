@@ -1,6 +1,6 @@
 {
-  "date": "2026-09-20T15:41:12.233Z",
-  "exe": "C:\\Users\\ww\\Documents\\Codex\\2026-09-16\\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\\outputs\\Tiny-Tides-GM-2026-09-20.exe",
+  "date": "2026-09-20T17:14:55.574Z",
+  "exe": "C:\\Users\\ww\\Documents\\Codex\\2026-09-16\\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\\work\\ocean-site\\src-tauri\\target\\release\\tiny-tides-pet.exe",
   "browser": "153.0.4234.48",
   "checks": [
     "native EXE, fixed 75%, no size UI, old 100% preference ignored",

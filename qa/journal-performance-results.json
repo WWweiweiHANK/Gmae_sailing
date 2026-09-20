@@ -1,21 +1,21 @@
 {
-  "date": "2026-09-20T05:00:56.077Z",
-  "browser": "153.0.4234.32",
+  "date": "2026-09-20T15:20:40.287Z",
+  "browser": "153.0.4234.48",
   "viewport": [
     560,
     540
   ],
   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct3D11 vs_5_0 ps_5_0, D3D11)",
   "baseline": {
-    "timestamp": "2026-09-20T05:00:32.049Z",
-    "fps": 25.948621728976622,
-    "cpuMeanMs": 1.0261538443657068,
-    "cpuP95Ms": 1.7999999821186066,
-    "calls": 145,
-    "triangles": 19138,
+    "timestamp": "2026-09-20T15:20:16.230Z",
+    "fps": 29.99880004799808,
+    "cpuMeanMs": 1.0020000000794729,
+    "cpuP95Ms": 1.5999999940395355,
+    "calls": 143,
+    "triangles": 19098,
     "geometries": 54,
     "textures": 2,
-    "programs": 11,
+    "programs": 12,
     "buffer": [
       560,
       540
@@ -23,19 +23,19 @@
     "period": "day",
     "weather": "clear",
     "aurora": false,
-    "jsHeapBytes": 25117307,
-    "totalFrames": 245
+    "jsHeapBytes": 24561665,
+    "totalFrames": 279
   },
   "opened": {
-    "timestamp": "2026-09-20T05:00:47.114Z",
-    "fps": 26.090420235012946,
-    "cpuMeanMs": 0.7328244258884256,
-    "cpuP95Ms": 1.2000000178813934,
+    "timestamp": "2026-09-20T15:20:31.230Z",
+    "fps": 30,
+    "cpuMeanMs": 0.7333333325386048,
+    "cpuP95Ms": 1.100000023841858,
     "calls": 115,
     "triangles": 18982,
     "geometries": 54,
     "textures": 2,
-    "programs": 11,
+    "programs": 12,
     "buffer": [
       560,
       540
@@ -43,13 +43,13 @@
     "period": "day",
     "weather": "clear",
     "aurora": false,
-    "jsHeapBytes": 25963619,
-    "totalFrames": 637
+    "jsHeapBytes": 29661719,
+    "totalFrames": 728
   },
   "cycles": 30,
-  "domBefore": 394,
-  "domAfter": 394,
-  "memoryBefore": 9001044,
-  "memoryAfter": 9180080,
+  "domBefore": 399,
+  "domAfter": 399,
+  "memoryBefore": 9130612,
+  "memoryAfter": 9567340,
   "note": "Headless Edge, one five-second sample after each eleven-second settle. CPU measures Three.js submission, not GPU or CSS compositor time. 30 open/close cycles are a short regression check, not a long-duration desktop benchmark."
 }

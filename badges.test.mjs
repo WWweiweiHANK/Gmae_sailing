@@ -35,7 +35,7 @@ test('real effects report no encounter at scheduling or while dolphins remain un
 });
 test('old equipped test badge migrates alone, preserving appearance and balances',()=>{
  const {storage}=setup();storage.setItem(GAME_SAVE_KEY,JSON.stringify({version:2,shipCustomization:{name:'晚风号',equippedBadge:'whale',hullColor:'#eddb9b'},sailingData:{points:91,totalSailingSeconds:80},ownedColors:['yellow']}));
- const saved=createGameSave(storage).read();assert.equal(saved.version,8);assert.equal(saved.shipCustomization.equippedBadge,'whale');assert.equal(saved.ownedBadges.length,1);assert.equal(saved.ownedBadges[0].sourceEventId,'legacy_equipped');assert.equal(saved.ownedBadges[0].unlockedAt,null);assert.equal(saved.sailingData.points,91);assert.equal(saved.shipCustomization.name,'晚风号');assert.ok(saved.ownedColors.includes('yellow'));
+ const saved=createGameSave(storage).read();assert.equal(saved.version,9);assert.equal(saved.shipCustomization.equippedBadge,'whale');assert.equal(saved.ownedBadges.length,1);assert.equal(saved.ownedBadges[0].sourceEventId,'legacy_equipped');assert.equal(saved.ownedBadges[0].unlockedAt,null);assert.equal(saved.sailingData.points,91);assert.equal(saved.shipCustomization.name,'晚风号');assert.ok(saved.ownedColors.includes('yellow'));
 });
 test('failed persistence cannot equip or lose a pending experience; retry saves once',()=>{
  const {storage,badges,store}=setup(),write=storage.setItem;storage.setItem=()=>{throw Error('full');};assert.equal(badges.unlockBadge('aurora_night'),'save-failed');assert.equal(badges.equip('aurora_night'),'locked');

@@ -1,5 +1,5 @@
 import {encounterCatalog,ENCOUNTER_PACING as DEFAULT,QUIET_JOURNAL_PACING as QUIET,sanitizeEncounters,souvenirIds} from './encounter-catalog.mjs';
-export function createEncounterDirector({store,bus,shipName,random=Math.random,now=()=>new Date(),config=DEFAULT}){
+export function createEncounterDirector({store,bus,shipName,intents=null,random=Math.random,now=()=>new Date(),config=DEFAULT}){
  const data=sanitizeEncounters(store.read()),state=data.encounterDirectorState,history=data.encounterHistory,slots=new Map();
  const range=a=>a[0]+random()*(a[1]-a[0]);let sinceSave=0,latestEnv=null,lastCompleted=null;
  for(const tier of ['ambient','special','wonder'])if(state.next[tier]===undefined)state.next[tier]=state.time+range(tier==='ambient'&&Object.keys(history).length<2?config.firstAmbient:config.windows[tier]);
@@ -45,6 +45,7 @@ export function createEncounterDirector({store,bus,shipName,random=Math.random,n
   if(a.slot==='major')state.quietUntil=state.time+range(config.quietAfterMajor);
   if(a.seen){if(!interrupted){history[id].completedCount++;const reward=encounterCatalog.find(e=>e.id===id).souvenirReward;if(reward)a.souvenirUnlocked=unlockSouvenir(reward);}
    lastCompleted={encounterId:id,startTime:a.startTime,endTime:now().toISOString(),weather:a.weather,timeOfDay:a.timeOfDay,shipName:a.shipName,firstTime:a.firstTime,seenCount:a.seenCount,souvenirUnlocked:a.souvenirUnlocked,badgeUnlocked:a.badgeUnlocked,persistentVisitorId:a.persistentVisitorId,interrupted,logTemplate:encounterCatalog.find(e=>e.id===id).logTemplate};
+   if(!interrupted)Object.assign(lastCompleted,intents?.respond(lastCompleted));
    bus.emitWorldEvent(interrupted?'encounter_interrupted':'encounter_completed',lastCompleted);
   }persist();return true;
  }
@@ -55,7 +56,8 @@ export function createEncounterDirector({store,bus,shipName,random=Math.random,n
   if(!candidates.length)return;
   const pity=Math.min(.18,(state.time-state.lastSeenTime)/7200*.18),chance=Math.min(.92,config.chance[tier]+pity);
   if(random()>chance)return;
-  const weight=e=>e?e.weight*(state.lastCategory===e.category ? .3 : 1)*(e.repeatPolicy==='diminish'&&history[e.id]?.seenCount ? .25 : 1):1.5;
+  const modifiers=intents?.modifiers()??{};
+  const weight=e=>e?e.weight*(modifiers[e.id]??1)*(state.lastCategory===e.category ? .3 : 1)*(e.repeatPolicy==='diminish'&&history[e.id]?.seenCount ? .25 : 1):1.5;
   let draw=random()*candidates.reduce((n,e)=>n+weight(e),0),selected=candidates.at(-1);
   for(const e of candidates){draw-=weight(e);if(draw<=0){selected=e;break;}}
   state.bags[tier]=bag.filter(id=>id!==(selected?.id??null));if(selected)startEncounter(selected.id,env);

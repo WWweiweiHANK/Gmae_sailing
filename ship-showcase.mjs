@@ -26,16 +26,16 @@ export function createShowcaseCamera(camera,controls){
  }};
 }
 
-export function createShipShowcase({canvas,camera,controls,ship,customization,skins,accessories,badges,journal,onEnter,onLeave}){
+export function createShipShowcase({canvas,camera,controls,ship,customization,skins,accessories,badges,journal,intents,onEnter,onLeave}){
  const dialog=document.querySelector('#my-ship'),panel=document.querySelector('#ship-panel');
  const notice=document.querySelector('#ship-notice'),nameInput=document.querySelector('#ship-name');
  const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
- let phase='sailing',progress=0,view=null,yaw=0,pitch=0,vYaw=0,vPitch=0,zoom=1,drag=null,pressed=null,previousFocus=null;
+ let directJournal=false;let phase='sailing',progress=0,view=null,yaw=0,pitch=0,vYaw=0,vPitch=0,zoom=1,drag=null,pressed=null,previousFocus=null;
  const nameForm=document.querySelector('#ship-name-form'),nameRow=document.querySelector('#ship-title-row'),nameEdit=document.querySelector('#ship-name-edit'),balance=document.querySelector('#ship-balance'),mileage=document.querySelector('#mileage-info');
  function mileageOpen(open){balance.setAttribute('aria-expanded',String(open));mileage.setAttribute('aria-hidden',String(!open));}
  balance.addEventListener('click',()=>mileageOpen(balance.getAttribute('aria-expanded')!=='true'));
  const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
- const journalView=createJournalView({journal,customization,canOpen:()=>phase==='open'&&nameForm.hidden,onMode:()=>{mileageOpen(false);drag=null;pressed=null;vYaw=0;vPitch=0;}});
+ const journalView=createJournalView({journal,customization,intents,canOpen:()=>(phase==='open'||directJournal&&phase==='opening')&&nameForm.hidden,onRequestOpen:()=>openJournal(),onMode:(opened,leave)=>{if(!opened&&(directJournal||leave))close();mileageOpen(false);drag=null;pressed=null;vYaw=0;vPitch=0;}});
  const tabs=[...dialog.querySelectorAll('.ship-tabs [role=tab]')];
  function tab(id){acknowledgeBadges();for(const button of tabs){const active=button.dataset.tab===id;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;document.querySelector('#ship-'+button.dataset.tab).hidden=!active;}if(id==='accessories'){refreshAccessories();refreshBadges();acknowledgeBadges();}}
  tabs.forEach((button,i)=>{button.addEventListener('click',()=>tab(button.dataset.tab));button.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const next=tabs[(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length];tab(next.dataset.tab);next.focus();}});});
@@ -102,7 +102,8 @@ export function createShipShowcase({canvas,camera,controls,ship,customization,sk
  }
  function hit(x,y){if(x<0||y<0||x>innerWidth||y>innerHeight)return false;pointer.set(x/innerWidth*2-1,1-y/innerHeight*2);ship.updateWorldMatrix(true,true);camera.updateMatrixWorld();ray.setFromCamera(pointer,camera);return ray.intersectObject(ship,true).length>0;}
  function open(){if(phase!=='sailing')return;previousFocus=document.activeElement;yaw=0;pitch=0;vYaw=0;vPitch=0;zoom=1;phase='opening';progress=0;view=createShowcaseCamera(camera,controls);document.body.dataset.showcase='true';dialog.hidden=false;dialog.classList.remove('leaving');nameInput.value=customization.data.name;notice.textContent='拖动看看小船 · 滚轮轻轻缩放';onEnter();tab('skins');refresh();journalView.layout();document.querySelector('#ship-close').focus();}
- function close(){if(phase==='sailing'||phase==='closing')return;finishName(false);mileageOpen(false);journalView.close(true);acknowledgeBadges();clearTimeout(noticeTimer);phase='closing';drag=null;pressed=null;vYaw=0;vPitch=0;dialog.classList.add('leaving');}
+ function openJournal(entryId){if(phase==='sailing'){directJournal=true;document.body.dataset.directJournal='true';open();}journalView.open({latest:true,entryId});}
+ function close(){if(phase==='sailing'||phase==='closing')return;phase='closing';finishName(false);mileageOpen(false);journalView.close(true);acknowledgeBadges();clearTimeout(noticeTimer);drag=null;pressed=null;vYaw=0;vPitch=0;dialog.classList.add('leaving');}
  document.querySelector('#ship-close').addEventListener('click',close);
  document.addEventListener('keydown',e=>{
   if(e.isComposing)return;
@@ -112,7 +113,7 @@ export function createShipShowcase({canvas,camera,controls,ship,customization,sk
   if(phase==='sailing'){if(document.activeElement===canvas&&(e.key==='Enter'||e.key===' ')){e.preventDefault();open();}return;}
   if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();return;}
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&document.activeElement===canvas){e.preventDefault();yaw+=(e.key==='ArrowLeft'?.15:e.key==='ArrowRight'?-.15:0);pitch=THREE.MathUtils.clamp(pitch+(e.key==='ArrowUp'?.08:e.key==='ArrowDown'?-.08:0),-1,.04);}
-  if(e.key==='Tab'){const focusable=[canvas,...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled)')].filter(el=>el.tabIndex>=0&&el.getClientRects().length&&getComputedStyle(el).visibility==='visible'&&!el.closest('[inert]'));const index=focusable.indexOf(document.activeElement);e.preventDefault();focusable[(index+(e.shiftKey?-1:1)+focusable.length)%focusable.length].focus();}
+  if(e.key==='Tab'){const focusable=[canvas,document.querySelector('#journal-open'),...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled)')].filter(el=>el.tabIndex>=0&&el.getClientRects().length&&getComputedStyle(el).visibility==='visible'&&!el.closest('[inert]'));const index=focusable.indexOf(document.activeElement);e.preventDefault();focusable[(index+(e.shiftKey?-1:1)+focusable.length)%focusable.length].focus();}
  },true);
  canvas.addEventListener('wheel',e=>{if(phase!=='open'||journalView.busy)return;e.preventDefault();e.stopImmediatePropagation();zoom=THREE.MathUtils.clamp(zoom*Math.exp(e.deltaY*.0008),.84,1.12);},{capture:true,passive:false});
  canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;if(phase!=='sailing'){
@@ -128,7 +129,7 @@ export function createShipShowcase({canvas,camera,controls,ship,customization,sk
  for(const event of ['pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>{drag=null;pressed=null;vYaw=0;vPitch=0;});
  window.addEventListener('blur',()=>{drag=null;pressed=null;vYaw=0;vPitch=0;});
  refresh();
- return {open,close,hit,refreshAccessories(){if(phase!=='sailing'&&!document.querySelector('#ship-accessories').hidden)refreshAccessories();},refreshBadges(){journalView.refreshCover();if(phase!=='sailing'&&!badgePanel.hidden)refreshBadges();},get busy(){return phase!=='sailing';},get inspecting(){return phase==='open';},get blend(){return progress*progress*(3-2*progress);},snapshot:()=>({phase,progress,yaw,pitch,zoom}),
+ return {open,close,hit,openJournal,noteHit:journalView.noteHit,refreshAccessories(){if(phase!=='sailing'&&!document.querySelector('#ship-accessories').hidden)refreshAccessories();},refreshBadges(){journalView.refreshCover();if(phase!=='sailing'&&!badgePanel.hidden)refreshBadges();},get busy(){return phase!=='sailing';},get inspecting(){return phase==='open';},get blend(){return progress*progress*(3-2*progress);},snapshot:()=>({phase,progress,yaw,pitch,zoom}),
   update(dt){
    if(phase==='sailing')return;
    const step=dt/(reduceMotion?.12:.85);progress=THREE.MathUtils.clamp(progress+(phase==='closing'?-step:step),0,1);
@@ -137,7 +138,7 @@ export function createShipShowcase({canvas,camera,controls,ship,customization,sk
    const available=Math.max(.3,1-panel.getBoundingClientRect().height/innerHeight-.1);
    journalView.update(dt);view.update(ship,available,yaw,pitch,blend,journalView.blend,innerWidth<=460,zoom);
    if(phase==='opening'&&progress===1)phase='open';
-   if(phase==='closing'&&progress===0){view.restore();phase='sailing';dialog.hidden=true;document.body.dataset.showcase='false';onLeave();(previousFocus?.isConnected?previousFocus:canvas).focus();}
+   if(phase==='closing'&&progress===0){view.restore();phase='sailing';dialog.hidden=true;document.body.dataset.showcase='false';document.body.dataset.directJournal='false';directJournal=false;journalView.layout();onLeave();(previousFocus?.isConnected&&previousFocus.getClientRects().length?previousFocus:canvas).focus();}
   }
  };
 }

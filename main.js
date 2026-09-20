@@ -24,6 +24,7 @@ import {createEncounterDirector} from './encounter-director.mjs';
 import {encounterCatalog,ENCOUNTER_PACING} from './encounter-catalog.mjs';
 import {createEncounterVisuals,encounterBioGLSL} from './encounter-visuals.mjs';
 import {createJournal} from './journal/journal-store.mjs';
+import {createVoyageIntentManager} from './voyage-intents.mjs';
 const canvas = document.querySelector('#scene');
 function showError(text) { document.querySelector('#loading').hidden=true;const el=document.querySelector('#error');el.hidden=false;el.textContent=text; }
 start().catch(error=>{console.error(error);showError('场景未能启动，请检查 WebGL 2 / WebView2。托盘仍可退出或重置。');});
@@ -37,7 +38,8 @@ const qa=typeof __QA__!=='undefined'&&__QA__;
 const query=new URLSearchParams(location.search),scenario=qa?query.get('scenario'):null;
 const encounterQA=qa?encounterCatalog.find(e=>e.id===query.get('encounterPreview')):null;
 const initial=encounterQA?{period:encounterQA.conditions.time[0],weather:encounterQA.conditions.weather[0],disableAurora:true}:scenario==='storm'?{weather:'storm'}:scenario==='aurora'?{period:'night',aurora:true}:['day','dusk','night','dawn'].includes(scenario)?{period:scenario,disableAurora:true}:{};
-const environment=createEnvironment(Math.random,{...initial,fixed:qa});
+let intents=null;
+const environment=createEnvironment(Math.random,{...initial,fixed:qa,intentWeight:()=>intents?.modifiers().aurora??1});
 const clock=createFrameClock();let timer=0,raf=0,contextLost=false;
 let savedCameraApplied=false,lastNativeSound=null,saveTimer=0;
 let badges=null,encounterDirector=null,renderedNight=false;
@@ -47,9 +49,11 @@ const development=typeof __DEV__!=='undefined'&&__DEV__,fastSailing=typeof __DEV
 const fastEncounters=typeof __DEV__!=='undefined'&&__DEV__&&query.get('encounterDebug')==='fast';
 const store=createGameSave({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},
  {key:fastEncounters?'tiny-tides-encounters-debug-v1':fastSailing?'tiny-tides-game-debug-v1':GAME_SAVE_KEY,migrateLegacy:!fastSailing&&!fastEncounters,onError:message=>{saveError=message;document.querySelector('#ship-notice').textContent=message;console.warn(message);}});
-const journal=createJournal({store,bus:worldEventBus});
-const sailing=createSailing({initial:store.read().sailingData,config:sailingConfig(development,fastSailing),onSave:sailingData=>{
- badges?.advance(renderedNight);encounterDirector?.save();const saved=store.save({sailingData,...(badges?{badgeProgress:badges.progress()}:{})});if(saved)saveError='';if(showcase?.busy)refreshBalance();
+let sailing;
+intents=createVoyageIntentManager({store,total:()=>sailing?.snapshot().totalSailingSeconds??store.read().sailingData.totalSailingSeconds});
+const journal=createJournal({store,bus:worldEventBus,intents});
+sailing=createSailing({initial:store.read().sailingData,config:sailingConfig(development,fastSailing),onSave:sailingData=>{
+ badges?.advance(renderedNight);intents.save();encounterDirector?.save();const saved=store.save({sailingData,...(badges?{badgeProgress:badges.progress()}:{})});if(saved)saveError='';if(showcase?.busy)refreshBalance();
  if(development)console.debug('[航行值]',{...sailingData,isSailingActive:isSailingActive(),debugFast:fastSailing});return saved;
 }});
 const debugPoints=typeof __DEV__!=='undefined'&&__DEV__&&fastSailing?Number(query.get('debugPoints')):0;
@@ -162,7 +166,7 @@ document.documentElement.style.setProperty('--accessory-sheet',`url("${accessory
 badges=createBadges({store,customization,bus:worldEventBus,total:()=>sailing.snapshot().totalSailingSeconds,config:typeof __DEV__!=='undefined'&&__DEV__&&fastSailing?{first_voyage:30,old_sailor:120,starry_night:10}:{},onChange:()=>showcase?.refreshBadges()});
 if(typeof __DEV__!=='undefined'&&__DEV__){window.debugUnlockBadge=id=>badges.unlockBadge(id,{sourceEventId:'debug'});window.emitWorldEvent=worldEventBus.emitWorldEvent;}
 const debugPacing=()=>({...ENCOUNTER_PACING,windows:{ambient:[10,20],special:[20,40],wonder:[40,60]},firstAmbient:[10,15],quietAfterMajor:[5,8],wonderGap:45,cooldownScale:.01});
-encounterDirector=createEncounterDirector({store,bus:worldEventBus,shipName:()=>customization.data.name,config:fastEncounters?debugPacing():ENCOUNTER_PACING});
+encounterDirector=createEncounterDirector({store,bus:worldEventBus,intents,shipName:()=>customization.data.name,config:fastEncounters?debugPacing():ENCOUNTER_PACING});
 worldEventBus.subscribe(type=>{if(type==='encounter_completed')showcase?.refreshAccessories();});
 function encounterEnvironment(env){return {...env,aurora:effects.waterGlow.value,auroraDueIn:env.auroraAllowed?env.auroraAt-env.worldTime:Infinity};}
 if(typeof __GM__!=='undefined'&&__GM__){
@@ -176,10 +180,22 @@ if(typeof __DEV__!=='undefined'&&__DEV__){
  window.triggerEncounter=id=>encounterDirector.startEncounter(id,encounterEnvironment(environment.snapshot()),{ignoreTiming:true});
  let accelerated=fastEncounters;Object.defineProperty(window,'DEBUG_ENCOUNTER_SPEED',{get:()=>accelerated,set:value=>{accelerated=value===true;encounterDirector.setPacing(accelerated?debugPacing():ENCOUNTER_PACING);}});
 }
-showcase=createShipShowcase({canvas,camera,controls,ship,customization,skins,accessories,badges,journal,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
+showcase=createShipShowcase({canvas,camera,controls,ship,customization,skins,accessories,badges,journal,intents,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
+// Intent debug tools use the existing isolated encounter test save only.
+if(typeof __DEV__!=='undefined'&&__DEV__&&fastEncounters){
+ window.debugSetVoyageIntent=id=>intents.setIntent(id,{},true);
+ window.debugClearVoyageIntent=()=>intents.setIntent('free_sailing',{},true);
+ window.getCurrentVoyageIntentDebug=()=>({state:intents.snapshot(),modifiers:intents.modifiers()});
+ window.debugOpenIntentJournal=id=>{
+  if(!encounterCatalog.some(e=>e.id===id))return false;
+  const count=journal.entries().filter(e=>e.encounterId===id).length+1,at=new Date().toISOString();
+  worldEventBus.emitWorldEvent('encounter_completed',{encounterId:id,startTime:at,endTime:at,shipName:customization.data.name,weather:latestEnvironment.weather,timeOfDay:latestEnvironment.period,firstTime:count===1,seenCount:count});
+  showcase.openJournal(journal.entries().at(-1)?.id);return true;
+ };
+}
 // Click-through windows receive no pointer events: poll only the native cursor and raycast this ship.
 let pollingPointer=false;if(bridge.native)setInterval(async()=>{if(pollingPointer||showcase.busy||nativeState.editing||!nativeState.visible||nativeState.minimized)return;pollingPointer=true;
- try{const point=await bridge.pointer();if(!showcase.busy&&!nativeState.editing)await bridge.hover(showcase.hit(...point));}catch(error){console.warn(error);}finally{pollingPointer=false;}
+ try{const point=await bridge.pointer();if(!showcase.busy&&!nativeState.editing)await bridge.hover(showcase.hit(...point)||showcase.noteHit(...point));}catch(error){console.warn(error);}finally{pollingPointer=false;}
 },100);
 if(!bridge.native){try{const record=JSON.parse(localStorage.getItem('tiny-tides-view'));if(record){restoreView(record.camera);waveTarget=Math.max(0,Math.min(2,record.wave))*2.2;waveSlider.value=String(waveTarget/.022);document.querySelector('#wave-value').value=waveSlider.value+'%';}}catch{}}
 soundButton.addEventListener('click',()=>{void ambience.setEnabled(!ambience.enabled).then(enabled=>{if(enabled!==nativeState.settings.sound)return bridge.action('sound');}).catch(console.warn);});
@@ -203,7 +219,7 @@ document.addEventListener('freeze',suspendPage);document.addEventListener('resum
 canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();contextLost=true;syncScheduler();showError('图形上下文已暂停；恢复后自动继续。');});
 canvas.addEventListener('webglcontextrestored',()=>{contextLost=false;document.querySelector('#error').hidden=true;syncScheduler();});
 let latestEnvironment=environment.snapshot();
-function report(){return {...monitor.report(),environment:latestEnvironment,boatSize:ship.scale.x,shipLighting:{point:boat.shipLight.intensity,lamp:boat.materials.lamp.emissiveIntensity,windows:boat.materials.glass.emissiveIntensity},encounters:encounterDirector?.snapshot(),paused:!active(),camera:cameraRecord(),audio:{requested:nativeState.settings.sound,playing:ambience.enabled,loaded:ambience.loaded},rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,ownedColors:store.read().ownedColors,ownedBadges:store.read().ownedBadges,badgeProgress:badges.progress(),seenBadgeNotifications:store.read().seenBadgeNotifications,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
+function report(){return {...monitor.report(),environment:latestEnvironment,boatSize:ship.scale.x,shipLighting:{point:boat.shipLight.intensity,lamp:boat.materials.lamp.emissiveIntensity,windows:boat.materials.glass.emissiveIntensity},encounters:encounterDirector?.snapshot(),voyageIntent:intents.snapshot(),paused:!active(),camera:cameraRecord(),audio:{requested:nativeState.settings.sound,playing:ambience.enabled,loaded:ambience.loaded},rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,ownedColors:store.read().ownedColors,ownedBadges:store.read().ownedBadges,badgeProgress:badges.progress(),seenBadgeNotifications:store.read().seenBadgeNotifications,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
 let lastAlpha=null,diagnosticAt=0,startupRecorded=false;
 if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'get_ocean_state',title:'查看桌宠状态与实测性能',description:'只读场景状态、帧率、CPU提交时间及资源数量。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:report});}
 if(typeof __DEV__!=='undefined'&&__DEV__&&fastSailing&&document.modelContext?.registerTool)document.modelContext.registerTool({name:'debug_badge_event',title:'测试存档：触发徽章事件',description:'仅独立开发存档可用；模拟体验事件或直接解锁徽章，正常存档和正式包没有此入口。',inputSchema:{type:'object',properties:{type:{type:'string'},badgeId:{type:'string'}},additionalProperties:false},execute:({type,badgeId})=>({result:badgeId?badges.unlockBadge(badgeId,{sourceEventId:'debug'}):worldEventBus.emitWorldEvent(type,{sourceEventId:'debug-event'}),ownedBadges:store.read().ownedBadges})});

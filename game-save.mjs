@@ -1,6 +1,7 @@
 import {sanitizeEncounters} from './encounter-catalog.mjs';
 import {accessoryRewards} from './accessory-rewards.mjs';
 import {sanitizeJournal} from './journal/journal-store.mjs';
+import {sanitizeVoyageIntents} from './voyage-intents.mjs';
 import {sanitizeShip,SHIP_STORAGE_KEY} from './ship-customization.mjs';
 import {sanitizeSailing} from './sailing.mjs';
 import {colorCatalog,ownedColorIds,COLOR_PARTS} from './color-catalog.mjs';
@@ -10,7 +11,7 @@ export function createGameSave(storage,{key=GAME_SAVE_KEY,onError=()=>{},migrate
  let loaded,legacy,readOnly=false,isNew=false;
  try{
   const raw=storage.getItem(key);isNew=raw===null;loaded=raw?JSON.parse(raw):null;
-  if(loaded&&![1,2,3,4,5,6,7,8].includes(loaded.version)){readOnly=true;onError('存档版本不兼容，已保护原存档；本次修改不会保存。');}
+  if(loaded&&![1,2,3,4,5,6,7,8,9].includes(loaded.version)){readOnly=true;onError('存档版本不兼容，已保护原存档；本次修改不会保存。');}
   if(!loaded&&migrateLegacy)legacy=JSON.parse(storage.getItem(SHIP_STORAGE_KEY)||'null');
  }catch{readOnly=true;onError('无法读取本机存档，已保护原数据；本次修改不会保存。');}
  const shipCustomization=sanitizeShip(loaded?.shipCustomization??legacy);
@@ -22,7 +23,7 @@ export function createGameSave(storage,{key=GAME_SAVE_KEY,onError=()=>{},migrate
  function normalize(value){
   const records=sanitizeBadges(value.ownedBadges),ship=sanitizeShip(value.shipCustomization);
   if(ship.equippedBadge&&!records.some(b=>b.badgeId===ship.equippedBadge))ship.equippedBadge=null;
-  return {...sanitizeEncounters(value),...sanitizeJournal(value),version:8,shipCustomization:ship,sailingData:sanitizeSailing(value.sailingData),ownedColors:ownedColorIds(value.ownedColors),colorHintSeen:value.colorHintSeen===true,ownedBadges:records,
+  return {...sanitizeEncounters(value),...sanitizeJournal(value),...sanitizeVoyageIntents(value),version:9,shipCustomization:ship,sailingData:sanitizeSailing(value.sailingData),ownedColors:ownedColorIds(value.ownedColors),colorHintSeen:value.colorHintSeen===true,ownedBadges:records,
    seenBadgeNotifications:[...new Set((Array.isArray(value.seenBadgeNotifications)?value.seenBadgeNotifications:[]).filter(id=>records.some(b=>b.badgeId===id)))],badgeProgress:sanitizeBadgeProgress(value.badgeProgress)};
  }
  let gameSave=normalize({...loaded,shipCustomization,ownedColors:[...(Array.isArray(loaded?.ownedColors)?loaded.ownedColors:[]),...equipped],ownedBadges});
@@ -35,6 +36,6 @@ export function createGameSave(storage,{key=GAME_SAVE_KEY,onError=()=>{},migrate
   try{storage.setItem(key,JSON.stringify(next));gameSave=next;return true;}
   catch{onError('本机保存失败，当前进度仍保留在本次运行中。');return false;}
  }
- if(legacy||loaded?.version<8)save({});
+ if(legacy||loaded?.version<9)save({});
  return {read,save,commit:patch=>save(patch,true),isNew};
 }

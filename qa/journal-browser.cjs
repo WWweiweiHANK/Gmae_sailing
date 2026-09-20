@@ -22,19 +22,19 @@ const fs=require('node:fs/promises');
   const before=await state();await page.locator('#journal-open').click();await page.waitForTimeout(1200);const during=await state();assert.ok(during.travelTime>before.travelTime);assert.equal(during.rendererCount,1);
   assert.match(await page.locator('.left-page').innerText(),/海底的影子/);assert.match(await page.locator('.right-page').innerText(),/原来是它/);
   assert.equal(await page.locator('#ship-panel').evaluate(el=>getComputedStyle(el).opacity),'0');assert.equal(await page.locator('#edit').isVisible(),false);
-  assert.equal(await page.locator('#journal-unread').isVisible(),false);await page.screenshot({path:'qa/journal-wide.png'});
+  assert.equal(await page.locator('#journal-open').getAttribute('aria-label'),'航海日志，10 条新记录');await page.screenshot({path:'qa/journal-wide.png'});
   await page.locator('#journal-next').click();await page.waitForTimeout(350);await page.screenshot({path:'qa/journal-flip.png'});await page.waitForTimeout(500);
   assert.match(await page.locator('.left-page').innerText(),/粉色的来客/);assert.match(await page.locator('.right-page').innerText(),/会发光的海/);
   await page.locator('#journal-prev').click();await page.waitForTimeout(820);assert.match(await page.locator('.left-page').innerText(),/海底的影子/);
   await page.locator('.journal-book').hover();await page.mouse.wheel(0,140);await page.mouse.wheel(0,140);await page.mouse.wheel(0,140);await page.waitForTimeout(1000);assert.match(await page.locator('#journal-page-number').textContent(),/^3 — 4/);
   await page.keyboard.press('Escape');await page.waitForTimeout(1000);assert.equal(await page.locator('#journal').evaluate(el=>el.classList.contains('is-open')),false);assert.equal(await page.locator('#ship-panel').isVisible(),true);assert.equal(await page.locator('#journal-open').evaluate(el=>document.activeElement===el),true);
-  await page.locator('#journal-open').click();await page.waitForTimeout(1150);assert.match(await page.locator('#journal-page-number').textContent(),/^9 — 10/);
+  await page.locator('#journal-open').click();await page.waitForTimeout(1150);assert.match(await page.locator('#journal-page-number').textContent(),/^1 — 2/);
   await page.keyboard.press('Home');await page.setViewportSize({width:560,height:540});await page.waitForTimeout(700);await page.screenshot({path:'qa/journal-desktop.png'});
   result.smallWindow=await page.locator('.journal-book').boundingBox();
   const overflow=await page.locator('.left-page,.right-page').evaluateAll(pages=>pages.map(p=>({overflow:p.scrollHeight>p.clientHeight,title:p.querySelector('h2').textContent})));assert.ok(overflow.every(p=>!p.overflow),JSON.stringify(overflow));
   await page.emulateMedia({reducedMotion:'reduce'});
   for(let spread=0;spread<5;spread++){
-   const overlaps=await page.locator('.left-page,.right-page').evaluateAll(pages=>pages.map(p=>({title:p.querySelector('h2').textContent,overlap:(p.querySelector('.journal-keepsake')??p.querySelector('.journal-prose')).getBoundingClientRect().bottom>p.querySelector('.journal-folio').getBoundingClientRect().top})));
+   const overlaps=await page.locator('.left-page,.right-page').evaluateAll(pages=>pages.map(p=>({title:p.querySelector('h2').textContent,overlap:p.querySelector('.journal-content').getBoundingClientRect().bottom>p.querySelector('.journal-folio').getBoundingClientRect().top})));
    assert.ok(overlaps.every(p=>!p.overlap),JSON.stringify(overlaps));if(spread<4){await page.keyboard.press('ArrowRight');await page.waitForTimeout(160);}
   }
   await page.keyboard.press('Home');await page.emulateMedia({reducedMotion:'no-preference'});

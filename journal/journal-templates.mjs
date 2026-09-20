@@ -22,5 +22,11 @@ export function journalText(event){
  const index=event.firstTime?0:variants.length===1?0:1+(Math.max(2,event.seenCount)-2)%(variants.length-1);
  let [title,body]=variants[index];
  if(event.encounterId==='quiet_day')body=event.timeOfDay==='dusk'?'今天没有遇到什么特别的事情。\n\n太阳落下去的时候，整片海都是金色的。\n\n{ship}，慢慢向前。':event.timeOfDay==='night'?'今夜没有特别的来客。\n\n{ship}的灯亮着，星光和水纹都很安静。':body;
+ if(event.encounterId==='pink_dolphin'&&event.seenCount>=2)body+='\n\n它似乎总从同一个方向出现。';
+ if(event.respondedToIntentId==='free_sailing')body+='\n\n我们没有追逐它。我以为不会再遇见，海却把彼此带了回来。';
+ else if(event.respondedToIntentId){
+  const response={follow_deep_creature:'看来我们真的沿着它留下的方向走了很久。',follow_migration:'跟着那些鸟留下的方向，海终于递来了新的风景。',follow_light:'还记得写下的那束灯光。雾的另一边，原来真的有回音。',seek_night_wonders:'我们多等了一会儿，夜把藏着的微光交给了小船。',follow_cold_current:'循着凉下来的海水，终于遇到了这位远方的客人。',follow_pink_visitor:'这次我们认出了它来的方向，也陪它慢慢走了一会儿。'};
+  if(response[event.respondedToIntentId])body+='\n\n'+response[event.respondedToIntentId];
+ }
  return {title,body:body.replaceAll('{ship}',event.shipName)};
 }

@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "ordinary note: no choices, no focus theft, read and returns to sea",
+    "clue hover, three prose choices, writing, automatic return, one shared book, 560/390 widths",
+    "reload preserves intent and permanent text, old choice cannot be repeated",
+    "latest unread spread and defer without replacing current intent",
+    "defer from full my-ship journal also returns to ocean",
+    "pink visitor first observation only, second visit keyboard choice replaces old intent",
+    "isolated debug save and production debug stripping"
+  ],
+  "errors": [],
+  "rendererCount": 1
+}

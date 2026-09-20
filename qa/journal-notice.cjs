@@ -16,8 +16,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   const first=await p.evaluate(()=>JSON.parse(localStorage.getItem('tiny-tides-game-v1')).journalEntries[0].id);
   assert.ok(await p.locator('.book-spread>.journal-page [data-entry]').evaluateAll((nodes,id)=>nodes.some(n=>n.dataset.entry===id),first),'chapter must open earliest unread, not latest entry');
   assert.match(await p.locator('[data-chapter=voyage]').innerText(),/新日志.*1/s);
-  await p.locator('[data-chapter=voyage]').click();await phase('open');await p.locator('.journal-backdrop').click({position:{x:5,y:5}});await phase('closed');
-  assert.equal(await p.locator('#journal-unread').isVisible(),false);assert.equal(await p.locator('.journal-dock-label').innerText(),'航海日志');
+  await p.locator('[data-chapter=voyage]').click();await phase('open');while(!await p.locator('#journal-next').isDisabled()){await p.locator('#journal-next').click();await phase('open');}await p.locator('.journal-backdrop').click({position:{x:5,y:5}});await phase('closed');
+  assert.equal(await p.locator('#journal-unread').isVisible(),false);assert.equal(await p.locator('.journal-dock-label').textContent(),'航海日志');
   await emit('quiet_day');await p.setViewportSize({width:390,height:700});await p.waitForTimeout(300);const r=await p.locator('.journal-dock-label').boundingBox();assert.ok(r.x>=0&&r.x+r.width<=390&&r.y+r.height<=700);await p.screenshot({path:'qa/journal-notice-narrow.png'});
   await p.emulateMedia({reducedMotion:'reduce'});await p.locator('#journal-open').click();await phase('open');assert.equal(await p.locator('.journal-backdrop').evaluate(n=>getComputedStyle(n).backgroundColor),'rgba(0, 0, 0, 0)');await p.keyboard.press('Escape');await phase('closed');assert.deepEqual(errors,[]);console.log('transparent backdrop, visible unread tabs, first unread navigation, read clearing and narrow layout passed');
  }finally{await browser.close();await new Promise(r=>server.close(r));}

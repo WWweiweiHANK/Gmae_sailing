@@ -1,9 +1,14 @@
-// Original procedural paper/pencil textures, no remote recordings or runtime synthesis.
-import {mkdir,writeFile} from 'node:fs/promises';
-await mkdir('assets/journal',{recursive:true});
-let seed=2187;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
-for(let sample=0;sample<7;sample++){
- const paper=sample>=5,rate=22050,length=Math.floor(rate*(paper?.34:.15+sample*.025)),buffer=Buffer.alloc(44+length*2);buffer.write('RIFF');buffer.writeUInt32LE(buffer.length-8,4);buffer.write('WAVEfmt ',8);buffer.writeUInt32LE(16,16);buffer.writeUInt16LE(1,20);buffer.writeUInt16LE(1,22);buffer.writeUInt32LE(rate,24);buffer.writeUInt32LE(rate*2,28);buffer.writeUInt16LE(2,32);buffer.writeUInt16LE(16,34);buffer.write('data',36);buffer.writeUInt32LE(length*2,40);let low=0;
- for(let i=0;i<length;i++){const noise=random()*2-1;low=low*(paper?.9:.68)+noise*(paper?.1:.32);const t=i/length,envelope=Math.sin(Math.PI*t)**1.8,grain=.6+.4*Math.sin(i/(80+sample*19));buffer.writeInt16LE(Math.round((paper?low:noise-low*.8)*envelope*grain*(paper?18000:9000)),44+i*2);}
- await writeFile(`assets/journal/${sample<5?'pencil-'+sample:sample===5?'page':'close'}.wav`,buffer);
+// Offline derivatives of licensed close recordings. Sources and credits: SOUND_CREDITS.md.
+import {spawnSync} from 'node:child_process';
+const run=args=>{const r=spawnSync('ffmpeg',['-hide_banner',...args],{encoding:'utf8'});if(r.error)throw r.error;if(r.status!==0)throw Error(r.stderr);return r.stderr;};
+for(let i=0;i<7;i++){
+ const pencil=i<5,duration=pencil?.48+i*.025:i===5?.588:.72;
+ const input=['-ss',String(pencil?1.2+i*2.1:0),'-i',`assets/journal/source/${pencil?'pencil-inspectorj':'page-turn-owlstorm'}.mp3`,'-t',String(duration)];
+ const filter=`highpass=f=150,lowpass=f=${pencil?3400:2600}${i===6?',atempo=0.82':''},afade=t=in:d=0.025,afade=t=out:st=${duration-.07}:d=0.07`;
+ const stats=run([...input,'-af',filter+',volumedetect','-f','null','-']);
+ const mean=Number(stats.match(/mean_volume: ([-\d.]+)/)?.[1]),peak=Number(stats.match(/max_volume: ([-\d.]+)/)?.[1]);
+ if(!Number.isFinite(mean)||!Number.isFinite(peak))throw Error('Cannot measure recording');
+ const gain=Math.min(-25-mean,-10-peak);
+ run(['-y',...input,'-af',filter+`,volume=${gain}dB`,'-ar','22050','-ac','1','-c:a','pcm_s16le',`assets/journal/${pencil?'pencil-'+i:i===5?'page':'close'}.wav`]);
+ console.log({sample:i,sourceMeanDb:mean,sourcePeakDb:peak,gainDb:gain});
 }

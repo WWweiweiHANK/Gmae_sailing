@@ -8,7 +8,7 @@ export function renderBlock(block,choose){
  const {kind,entry,text}=block;let node;
  if(kind==='doodle'){node=illustration(entry.encounterId,entry.selectedIntentId?sketches[intentById(entry.selectedIntentId)?.icon]:null);node.style.height=block.height+'px';node.style.width=block.height+'px';node.style.marginLeft=block.align==='right'?'auto':block.align==='center'?'auto':'0';node.style.marginRight=block.align==='center'?'auto':'0';}
  else if(kind==='choice'){
-  node=element('button','intent-sentence',block.option.journalText);node.type='button';node.dataset.intent=block.option.id;node.onclick=()=>choose?.(entry,block.option,node);
+  node=element('button','intent-sentence',block.option.journalText);node.type='button';node.dataset.intent=block.option.id;node.onclick=()=>choose?.(entry,block.option,node);node.append(element('span','choice-action','写下这句'));
   const hint=element('span','intent-margin',block.option.hintText),sketch=illustration('quiet_day',sketches[block.option.icon]);hint.prepend(sketch);node.append(hint);
  }else node=element(kind==='title'?'h2':'p',({date:'journal-date',body:'journal-prose',written:'intent-written',prompt:'intent-prompt',annotation:'journal-annotation',keepsake:'journal-keepsake'})[kind]??'',text);
  node.dataset.entry=entry?.id??'';node.dataset.kind=kind;if(block.key)node.dataset.block=block.key;return node;
@@ -35,7 +35,7 @@ export function paginateJournal(entries,annotations,measure){
   let part=0;for(const paragraph of entry.body.split(/\n+/).filter(Boolean))put({kind:'body',entry,text:paragraph,key:entry.id+'-body-'+part++});
   if(entry.souvenirUnlocked)put({kind:'keepsake',entry,text:'留下了：'+souvenirNames[entry.souvenirUnlocked]});
   if(entry.selectedIntentId)put({kind:'written',entry,text:entry.selectedIntentText,key:entry.id+'-written'});
-  else if(intentOptions(entry).length){put({kind:'prompt',entry,text:'我想，接下来……'});for(const option of intentOptions(entry))put({kind:'choice',entry,option});}
+  else if(intentOptions(entry).length){put({kind:'prompt',entry,text:'选一句，写进手账\n也可以先翻页，稍后再决定。'});for(const option of intentOptions(entry))put({kind:'choice',entry,option});}
   for(const a of annotations.filter(a=>a.sourceJournalEntryId===entry.id))put({kind:'annotation',entry,text:new Date(a.timestamp).toLocaleDateString('zh-CN')+' · '+a.text});
   if(layout==='full_spread'){next();put({kind:'date',entry,text:'记住这一次相遇'});}
   // Occupy remaining paper instead of covering text; important encounters can own a page.

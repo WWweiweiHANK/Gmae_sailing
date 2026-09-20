@@ -58,4 +58,25 @@
 @media(prefers-reduced-motion:reduce){.journal-edge::before{transition:none}.journal-edge:hover::before{transform:none}}
 
 .book-spread.turning>.journal-page{pointer-events:none}
-.journal-overlay.has-unread .journal-chapters [data-chapter=voyage]{background:#c3ddd7;color:#234f55;font-weight:600;box-shadow:inset 3px 0 #6b9c96,3px 3px 4px #17384717}
+
+/* Paper controls stay legible without requiring a hover to reveal their purpose. */
+.journal-edge{width:92px;height:48px;display:flex;align-items:flex-end;justify-content:center;gap:3px;padding:0 8px 10px;color:#385c60;font-size:12px;font-weight:600}
+.journal-edge::before{width:46px;height:46px;background:linear-gradient(135deg,#c1cdbb,#e7e9d9 52%,#8d9c8b);opacity:1;z-index:-1}
+.journal-edge svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.journal-edge:hover,.journal-edge:focus-visible{color:#183e44}.journal-edge:focus-visible{outline:2px solid #507b79;outline-offset:-3px}
+.journal-navigation{bottom:12px;color:#566c67;font-size:11px}
+.intent-prompt{white-space:pre-line;margin:18px 0 10px;font-size:12px;line-height:1.7;color:#645637}
+.intent-sentence{padding:8px 10px;margin:0 0 9px;min-height:44px;background:#eee3c6;border:1px dashed #ac9870;border-radius:2px;color:#554a32;font-size:14px;line-height:1.65;text-decoration:none}
+.intent-sentence:hover,.intent-sentence:focus-visible{background:#e5d5ad;color:#3e3421;text-decoration:none}.intent-sentence:focus-visible{outline:2px solid #786744;outline-offset:2px}
+.choice-action{display:block;margin-top:4px;font-size:11px;font-weight:600;letter-spacing:.05em;color:#6a5635;text-align:right}
+.intent-written{color:#244f68;background:transparent;font-weight:500;line-height:1.85;margin-top:18px}
+.intent-written::before{content:'我写下的话';display:block;margin-bottom:6px;color:#6b756d;font-size:11px;font-weight:400;letter-spacing:.06em}
+.journal-bookmark,.journal-overlay.has-clue .journal-bookmark{width:20%;right:10%;height:32%;top:-9%;background:#b18342;color:#fff7df;display:flex;align-items:center;justify-content:center;padding-bottom:12%;font-size:44px;font-weight:600}
+.journal-overlay.has-clue .journal-bookmark{height:38%}
+.journal-dock-label{padding:4px 9px;border:1px solid transparent;border-radius:2px;background:transparent;font-size:13px;line-height:1.5;visibility:hidden}
+.journal-overlay:not(.is-open):has(#journal-open:hover) .journal-dock-label,.journal-overlay:not(.is-open):has(#journal-open:focus-visible) .journal-dock-label,.journal-overlay.has-unread:not(.is-open) .journal-dock-label{visibility:visible;pointer-events:auto}
+.journal-overlay.has-unread .journal-dock-label{background:#f0dfb6;color:#4c3e25;border-color:#a48a55;box-shadow:1px 3px 7px #28363126;font-weight:600}
+.journal-dock-label:hover,.journal-dock-label:focus-visible{background:#e5cd95}
+.journal-chapters{right:-24px}.journal-chapters button{width:34px;padding:13px 9px;font-size:13px}
+.journal-overlay.has-unread .journal-chapters [data-chapter=voyage]{background:#365f64;color:#fff3cf;box-shadow:3px 4px 6px #17384730;font-weight:600;border-top:5px solid #c49b51}
+@media(max-width:650px){.intent-sentence{font-size:13px;padding:7px 8px}.journal-chapters{right:-24px}.journal-chapters button{font-size:12px;padding:10px 9px}.journal-edge{width:83px;font-size:11px}}

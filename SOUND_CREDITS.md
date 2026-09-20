@@ -14,4 +14,13 @@
 
 ## 手账纸笔声音
 
-`assets/journal/pencil-0.wav` 至 `pencil-4.wav`、`page.wav`、`close.wav` 是本项目通过 `node scripts/journal-audio.mjs` 生成的滤波噪声与包络纹理，并非网络采样或实地录音。已提高原本过低的波形响度，保持轻柔；铅笔随机选择五个样本并轻微变化音量／速率。所有声音继承现有声音开关，隐藏时停声，不依赖海浪音频加载成功。文件以浏览器支持的 `audio/wav` 类型随 HTML 和 EXE 打包，无外部素材许可依赖。铅笔声在日志选择后的自动书写／绘画过程中播放，普通浏览不播放。
+当前手账改用网络真实近距离录音，替代此前程序合成的纸笔噪声。选择无对白、短促的纸面摩擦片段，按轻柔 ASMR 方向处理；是否舒适仍取决于听者和设备，不宣称具有治疗或助眠效果。
+
+| 本地文件 | 原作品与作者 | 许可 | 处理 |
+| --- | --- | --- | --- |
+| assets/journal/page.wav、close.wav | [Page Turn (1) — OwlStorm / Ashe Kirk](https://freesound.org/people/OwlStorm/sounds/151220/) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | 取公开 HQ MP3 预览；150Hz 高通、2600Hz 低通、首尾淡化、峰值不高于 -10dBFS；合书复用降速纸张声 |
+| assets/journal/pencil-0.wav 至 pencil-4.wav | [Pencil, Writing, Close, A.wav — InspectorJ](https://freesound.org/people/InspectorJ/sounds/398271/) ([www.jshaw.co.uk](https://www.jshaw.co.uk/))，来自 Freesound.org | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | 取公开 HQ MP3 预览的 1.2／3.3／5.4／7.5／9.6 秒处短片段；150Hz 高通、3400Hz 低通、首尾淡化与响度调整，转单声道 22050Hz PCM |
+
+原 HQ 预览保存在 `assets/journal/source/`，用于离线重制，不另外加载到运行时。运行 `node scripts/journal-audio.mjs` 可用本机 FFmpeg 重建七段 WAV。平均响度目标 -25dBFS，同时受 -10dBFS 峰值上限约束，再以纸声 0.55／铅笔 0.32–0.38 音量播放；不并发堆叠铅笔片段。原录音版权与许可不变，作者未为本应用背书。应用“声音来源”同步包含署名、原作品、许可及改编说明。
+
+声音继承总开关、隐藏与暂停状态，不依赖海浪初始化成功；以 `audio/wav` 随 HTML 和 EXE 离线打包。铅笔仅随自动书写／绘画播放，普通阅读不连续发声。

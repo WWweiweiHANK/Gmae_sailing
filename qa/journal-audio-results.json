@@ -2,86 +2,56 @@
   {
     "volume": 0.55,
     "ok": true,
-    "time": 0.265492,
-    "duration": 0.34
+    "time": 0.329326,
+    "duration": 0.587982
   },
   {
     "volume": 0.55,
     "ok": true,
-    "time": 0.119421,
-    "duration": 0.34
+    "time": 0.123497,
+    "duration": 0.587982
   },
   {
-    "volume": 0.3619829782089294,
+    "volume": 0.3407442624446462,
     "ok": true,
-    "time": 0.174966,
-    "duration": 0.174966
+    "time": 0.124584,
+    "duration": 0.555011
   },
   {
-    "volume": 0.3632246779046868,
+    "volume": 0.3553642479528762,
     "ok": true,
-    "time": 0.121514,
-    "duration": 0.249977
+    "time": 0.080707,
+    "duration": 0.530023
   },
   {
-    "volume": 0.3419468183536772,
-    "ok": true,
-    "time": 0.116944,
-    "duration": 0.249977
-  },
-  {
-    "volume": 0.32216809597286905,
-    "ok": true,
-    "time": 0.026851,
-    "duration": 0.249977
-  },
-  {
-    "volume": 0.3496843174963045,
+    "volume": 0.37337885245125224,
     "ok": false,
     "time": 0,
     "duration": 0,
     "error": "AbortError: The play() request was interrupted by a call to pause()."
   },
   {
-    "volume": 0.3308413680762404,
+    "volume": 0.34582377368598943,
     "ok": true,
-    "time": 0.102762,
-    "duration": 0.149977
+    "time": 0.114643,
+    "duration": 0.58
   },
   {
-    "volume": 0.3505430945880876,
+    "volume": 0.34178227160616903,
     "ok": true,
-    "time": 0.129607,
-    "duration": 0.224989
+    "time": 0.108808,
+    "duration": 0.530023
   },
   {
-    "volume": 0.3536993697598091,
+    "volume": 0.3765036843780538,
     "ok": true,
-    "time": 0.149977,
-    "duration": 0.149977
-  },
-  {
-    "volume": 0.37424596035237334,
-    "ok": true,
-    "time": 0.1092,
-    "duration": 0.249977
-  },
-  {
-    "volume": 0.32783984039852043,
-    "ok": true,
-    "time": 0.139525,
-    "duration": 0.224989
-  },
-  {
-    "volume": 0.3268117604096589,
-    "ok": true,
-    "time": 0.127066,
-    "duration": 0.224989
+    "time": 0.123542,
+    "duration": 0.530023
   },
   {
     "volume": 0.55,
     "ok": true,
-    "time": 0.134433,
-    "duration": 0.34
+    "time": 0.145521,
+    "duration": 0.696508
   }
 ]

@@ -9,7 +9,7 @@ const fs=require('node:fs/promises');
   await page.goto('http://127.0.0.1:4173/?sailingDebug=fast');await page.waitForFunction(()=>document.querySelector('#loading').hidden);await page.locator('#edit').click();await page.locator('#pause').click();await page.locator('#scene').focus();await page.keyboard.press('Enter');await page.waitForTimeout(1100);
   const state=()=>page.evaluate(()=>window.oceanTools.get_ocean_state.execute({})),initial=await state(),resources=[];
   await page.locator('#tab-accessories').click();assert.equal(await page.locator('#accessory-slot option').count(),7);
-  await page.locator('#tab-accessories').focus();await page.keyboard.press('Tab');assert.equal(await page.locator('#accessory-slot').evaluate(el=>el===document.activeElement),true);
+  await page.locator('#tab-accessories').focus();await page.keyboard.press('Tab');assert.equal(await page.locator('#decoration-category').evaluate(el=>el===document.activeElement),true);await page.keyboard.press('Tab');assert.equal(await page.locator('#accessory-slot').evaluate(el=>el===document.activeElement),true);
   let selections=0;
   for(let round=0;round<2;round++){
    for(const slot of ['flag','deck','chimney','lifering','nameplate','charm','roof']){
@@ -27,9 +27,9 @@ const fs=require('node:fs/promises');
   // Rotate the real scene to inspect the opposite hull side and all seven mounts.
   await page.mouse.move(550,240);await page.mouse.down();await page.mouse.move(850,280,{steps:24});await page.mouse.up();await page.waitForTimeout(1000);await page.screenshot({path:'qa/accessories-rotated.png'});
   for(const size of [{width:560,height:540},{width:390,height:700}]){await page.setViewportSize(size);await page.locator('#accessory-slot').selectOption('roof');await page.waitForTimeout(200);assert.equal(await page.locator('#ship-panel').evaluate(p=>p.scrollWidth<=p.clientWidth&&p.scrollHeight<=p.clientHeight),true);await page.screenshot({path:`qa/accessories-${size.width}.png`});}
-  // New fourth tab participates in the same keyboard navigation as the original tabs.
+  // Two primary tabs retain arrow-key navigation.
   await page.locator('#tab-skins').focus();await page.keyboard.press('ArrowRight');assert.equal(await page.locator('#tab-accessories').getAttribute('aria-selected'),'true');await page.keyboard.press('ArrowLeft');assert.equal(await page.locator('#tab-skins').getAttribute('aria-selected'),'true');
-  await page.locator('#journal-open').click();await page.waitForTimeout(1000);await page.keyboard.press('Escape');await page.waitForTimeout(850);assert.deepEqual((await state()).shipCustomization.accessories,fitted);
+  await page.locator('#journal-open').click();await page.waitForTimeout(1000);await page.keyboard.press('Escape');await page.waitForTimeout(1000);assert.deepEqual((await state()).shipCustomization.accessories,fitted);
   await page.reload();await page.waitForFunction(()=>document.querySelector('#loading').hidden);const reloaded=await state();assert.deepEqual(reloaded.shipCustomization.accessories,fitted);assert.equal(reloaded.shipCustomization.name,'晚风号');assert.equal(reloaded.shipCustomization.equippedBadge,'whale');assert.deepEqual(errors,[]);
   const result={selections,checks:'all fittings selectable / 7 mounts / all9 skins retain choices / atomic save and reload / name and badge retained / no points spent / 560x540 and390x700 layout / keyboard tabs / journal / repeated GPU resource stability',resources,errors};await fs.writeFile('qa/accessories-browser-results.json',JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));
  }finally{await browser.close();}

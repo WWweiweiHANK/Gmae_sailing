@@ -15,7 +15,7 @@ const fs=require('node:fs/promises');
    await page.screenshot({path:`qa/skin-${id}.png`,clip:{x:0,y:0,width:1100,height:520}});
   }
   await page.setViewportSize({width:560,height:540});await page.waitForTimeout(250);await page.screenshot({path:'qa/skins-desktop.png'});assert.equal(await page.locator('#ship-panel').evaluate(p=>p.scrollHeight<=p.clientHeight),true);
-  await page.locator('#journal-open').click();await page.waitForTimeout(1150);assert.equal(await page.locator('#journal').isVisible(),true);await page.keyboard.press('Escape');await page.waitForTimeout(850);assert.equal(await page.locator('[data-skin="gentle"]').getAttribute('aria-pressed'),'true');
+  await page.locator('#journal-open').click();await page.waitForTimeout(1150);assert.equal(await page.locator('#journal').isVisible(),true);await page.keyboard.press('Escape');await page.waitForTimeout(1000);assert.equal(await page.locator('[data-skin="gentle"]').getAttribute('aria-pressed'),'true');
   await page.locator('[data-skin="classic"]').click();await page.waitForTimeout(5200);resources.push((await state()).last);
   for(let i=0;i<5;i++)for(const id of ['classic','rounded','tall','light','wide','speedy','square','explorer','gentle']){await page.locator(`[data-skin="${id}"]`).click();await page.waitForTimeout(45);}
   await page.locator('[data-skin="classic"]').click();await page.waitForTimeout(5200);resources.push((await state()).last);assert.equal(resources[0].geometries,resources[1].geometries);assert.equal(resources[0].textures,resources[1].textures);assert.equal(resources[0].programs,resources[1].programs);

@@ -30,25 +30,34 @@ export function createJournalView({journal,customization,canOpen,onMode}){
  const overlay=document.querySelector('#journal'),book=overlay.querySelector('.journal-book'),spread=overlay.querySelector('.book-spread'),left=overlay.querySelector('.left-page'),right=overlay.querySelector('.right-page'),flip=overlay.querySelector('.flip-page');
  const front=flip.querySelector('.page-front'),back=flip.querySelector('.page-back'),entry=document.querySelector('#journal-open'),closeButton=document.querySelector('#journal-close');
  const prev=[...overlay.querySelectorAll('#journal-prev,.journal-prev')],next=[...overlay.querySelectorAll('#journal-next,.journal-next')];
- const reduced=matchMedia('(prefers-reduced-motion: reduce)'),panel=document.querySelector('#ship-panel'),balance=document.querySelector('#ship-balance'),shipClose=document.querySelector('#ship-close');
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)'),panel=document.querySelector('#ship-panel'),shipClose=document.querySelector('#ship-close');
  let phase='closed',index=0,entries=[],turning=false,timer=0,turnTimer=0,wheelUntil=0,blend=0;
- function indicator(){const count=journal.unread();document.querySelector('#journal-unread').textContent=count?`${count} 条新记录`:'';entry.setAttribute('aria-label',count?`航海日志，${count} 条新记录`:'航海日志');}
+ function indicator(){const count=journal.unread();document.querySelector('#journal-unread').hidden=!count;entry.setAttribute('aria-label',count?`航海日志，${count} 条新记录`:'翻开航海日志');}
+ function refreshCover(){
+  document.querySelector('#journal-cover-name').textContent=customization.data.name;document.querySelector('#journal-cover-year').textContent=(journal.entries()[0]?.date.slice(0,4)??new Date().getFullYear())+' —';
+  const badge=document.querySelector('#journal-cover-badge'),ctx=badge.getContext('2d'),icon=badgeCatalog.find(b=>b.id===customization.data.equippedBadge)?.icon;ctx.clearRect(0,0,80,80);badge.hidden=!icon;if(icon)drawBadge(ctx,icon,40,40,72);
+ }
+ function layout(){
+  const w=book.offsetWidth,h=book.offsetHeight;if(!w||!h)return;
+  const bottom=panel.getBoundingClientRect().top,height=Math.min(106,Math.max(58,(bottom-110)*.22)),width=height*.74,left=Math.max(22,(innerWidth-900)/2),top=bottom-height-26;
+  book.style.setProperty('--dock-x',(left+width-book.offsetLeft-w)+'px');book.style.setProperty('--dock-y',(top-book.offsetTop)+'px');book.style.setProperty('--dock-sx',width/(w/2+3));book.style.setProperty('--dock-sy',height/(h+8));
+  overlay.style.setProperty('--dock-label-x',left+'px');overlay.style.setProperty('--dock-label-y',(top+height+7)+'px');
+ }
+ window.addEventListener('resize',layout);
  function navigation(){const locked=phase!=='open'||turning;prev.forEach(b=>b.disabled=locked||index===0);next.forEach(b=>b.disabled=locked||index+2>=entries.length);document.querySelector('#journal-page-number').textContent=entries.length?`${index+1} — ${Math.min(index+2,entries.length)} / ${entries.length}`:'等待第一段故事';}
  function render(){renderPage(left,entries[index],index+1,!entries.length);renderPage(right,entries[index+1],index+2,!entries.length);navigation();}
- function inert(enabled){for(const el of [panel,balance,shipClose,entry])el.inert=enabled;}
+ function inert(enabled){for(const el of [panel,document.querySelector('.ship-heading'),document.querySelector('.mileage-block'),shipClose,entry])el.inert=enabled;}
  function open(){
   if(phase!=='closed'||!canOpen())return;index=journal.open();entries=journal.entries();phase='opening';wheelUntil=0;inert(true);onMode(true);
-  document.body.dataset.journal='true';overlay.hidden=false;overlay.classList.remove('is-closing');overlay.classList.add('is-opening');
-  document.querySelector('#journal-cover-name').textContent=customization.data.name;document.querySelector('#journal-cover-year').textContent=(entries[0]?.date.slice(0,4)??new Date().getFullYear())+' —';
-  const badge=document.querySelector('#journal-cover-badge'),ctx=badge.getContext('2d'),icon=badgeCatalog.find(b=>b.id===customization.data.equippedBadge)?.icon;ctx.clearRect(0,0,80,80);badge.hidden=!icon;if(icon)drawBadge(ctx,icon,40,40,72);
+  layout();refreshCover();document.body.dataset.journal='true';overlay.classList.remove('is-closing');overlay.classList.add('is-opening');
   render();void book.offsetWidth;overlay.classList.add('is-open');closeButton.focus();
-  timer=setTimeout(()=>{phase='open';overlay.classList.remove('is-opening');navigation();},reduced.matches?100:1050);
+  timer=setTimeout(()=>{phase='open';overlay.classList.remove('is-opening');navigation();},reduced.matches?100:1150);
  }
- function finishClose(restoreFocus){clearTimeout(timer);clearTimeout(turnTimer);turning=false;phase='closed';blend=0;flip.hidden=true;flip.className='flip-page';spread.classList.remove('turning');overlay.classList.remove('is-open','is-opening','is-closing');overlay.hidden=true;document.body.dataset.journal='false';inert(false);onMode(false);if(restoreFocus)entry.focus();}
+ function finishClose(restoreFocus){clearTimeout(timer);clearTimeout(turnTimer);turning=false;phase='closed';blend=0;flip.hidden=true;flip.className='flip-page';spread.classList.remove('turning');overlay.classList.remove('is-open','is-opening','is-closing');document.body.dataset.journal='false';inert(false);onMode(false);layout();if(restoreFocus)entry.focus();}
  function close(immediate=false){
   if(phase==='closed')return;if(immediate){finishClose(false);return;}if(phase==='closing')return;
   clearTimeout(timer);clearTimeout(turnTimer);turning=false;flip.hidden=true;spread.classList.remove('turning');render();phase='closing';overlay.classList.remove('is-opening');overlay.classList.add('is-closing');navigation();
-  document.body.dataset.journal='false';timer=setTimeout(()=>finishClose(true),reduced.matches?100:780);
+  document.body.dataset.journal='false';timer=setTimeout(()=>finishClose(true),reduced.matches?100:900);
  }
  function turn(direction){
   const target=index+direction*2;if(phase!=='open'||turning||target<0||target>=entries.length)return;
@@ -60,8 +69,8 @@ export function createJournalView({journal,customization,canOpen,onMode}){
  }
  entry.addEventListener('click',open);closeButton.addEventListener('click',()=>close());prev.forEach(b=>b.addEventListener('click',()=>turn(-1)));next.forEach(b=>b.addEventListener('click',()=>turn(1)));
  book.addEventListener('wheel',e=>{e.preventDefault();e.stopPropagation();const now=performance.now();if(phase!=='open'||turning||now<wheelUntil||Math.abs(e.deltaY)<4)return;wheelUntil=now+950;turn(Math.sign(e.deltaY));},{passive:false});
- journal.subscribe(()=>{indicator();if(phase==='closed')return;entries=journal.entries();if(!turning)render();});indicator();
- return {close,get busy(){return phase!=='closed';},get blend(){return blend*blend*(3-2*blend);},
+ journal.subscribe(()=>{indicator();if(phase==='closed')return;entries=journal.entries();if(!turning)render();});indicator();refreshCover();
+ return {close,refreshCover,layout,get busy(){return phase!=='closed';},get blend(){return blend*blend*(3-2*blend);},
   update(dt){const target=phase==='closed'||phase==='closing'?0:1;blend=Math.max(0,Math.min(1,blend+(target?1:-1)*dt/(reduced.matches?.1:target?1:.78)));},
   handleKey(e){if(phase==='closed')return false;if(['Escape','Tab','ArrowLeft','ArrowRight','PageUp','PageDown','Home','End'].includes(e.key)){e.preventDefault();e.stopImmediatePropagation();
     if(e.key==='Escape')close();else if(e.key==='Tab'){const focusable=[closeButton,...overlay.querySelectorAll('.journal-navigation button:not(:disabled)')],at=focusable.indexOf(document.activeElement);focusable[(at+(e.shiftKey?-1:1)+focusable.length)%focusable.length].focus();}

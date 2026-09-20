@@ -1,16 +1,18 @@
-<div class="journal-overlay" id="journal" role="group" aria-label="航海日志" hidden>
+<div class="journal-overlay" id="journal" role="group" aria-label="航海日志">
  <div class="journal-scrim" aria-hidden="true"></div>
  <div class="journal-book">
   <div class="book-page-stack" aria-hidden="true"></div>
   <div class="book-spread">
    <article class="journal-page left-page"></article><article class="journal-page right-page"></article>
    <div class="flip-page" aria-hidden="true" hidden><div class="journal-page page-front"></div><div class="journal-page page-back"></div></div>
-   <div class="book-cover" aria-hidden="true"><div class="cover-front"><span class="cover-rule">A LITTLE SEA / A LONG WAY</span><strong id="journal-cover-name"></strong><span class="cover-title">VOYAGE<br>LOG</span><canvas id="journal-cover-badge" width="80" height="80"></canvas><small id="journal-cover-year"></small></div><div class="cover-back"></div></div>
+   <div class="book-cover" aria-hidden="true"><div class="cover-front"><span id="journal-unread" class="journal-bookmark" hidden></span><span class="cover-rule">A LITTLE SEA / A LONG WAY</span><span class="cover-title">VOYAGE<br>LOG</span><strong id="journal-cover-name"></strong><canvas id="journal-cover-badge" width="80" height="80"></canvas><small id="journal-cover-year"></small></div><div class="cover-back"></div></div>
   </div>
+  <button id="journal-open" type="button" aria-label="翻开航海日志" title="航海日志"></button>
   <button class="journal-edge journal-prev" type="button" aria-label="上一页" title="上一页 · ←"></button>
   <button class="journal-edge journal-next" type="button" aria-label="下一页" title="下一页 · →"></button>
   <nav class="journal-navigation" aria-label="日志翻页"><button id="journal-prev" type="button" aria-label="上一页">←</button><span id="journal-page-number" role="status" aria-live="polite"></span><button id="journal-next" type="button" aria-label="下一页">→</button></nav>
   <span class="journal-hint">点击纸页边缘，慢慢翻阅</span>
  </div>
+ <span class="journal-dock-label" aria-hidden="true">航海日志</span>
  <button id="journal-close" type="button" aria-label="合上日志，返回我的船" title="合上日志 · Esc">×</button>
 </div>

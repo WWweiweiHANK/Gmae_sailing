@@ -54,8 +54,7 @@ const sailing=createSailing({initial:store.read().sailingData,config:sailingConf
 }});
 const debugPoints=typeof __DEV__!=='undefined'&&__DEV__&&fastSailing?Number(query.get('debugPoints')):0;
 if(store.isNew&&Number.isSafeInteger(debugPoints)&&debugPoints>0&&debugPoints<=10000)sailing.addSailingPoints(debugPoints);
-function refreshBalance(){const data=sailing.snapshot(),points=data.points,button=document.querySelector('#ship-balance');document.querySelector('#sailing-points').textContent=String(points);button.title=`航行值：${points}`;button.setAttribute('aria-label',button.title);document.querySelector('#ship-voyage-time').textContent=`已航行 ${Math.floor(data.totalSailingSeconds/3600)}h ${Math.floor(data.totalSailingSeconds/60)%60}m`;}
-document.querySelector('#ship-balance').addEventListener('click',()=>{document.querySelector('#ship-notice').textContent=`航行值：${sailing.snapshot().points} · 正常航行一分钟积累一点`;});
+function refreshBalance(){const data=sailing.snapshot(),points=data.points,button=document.querySelector('#ship-balance');document.querySelector('#sailing-points').textContent=String(points);button.title=`航海里程：${points} 海里`;button.setAttribute('aria-label',button.title);document.querySelector('#ship-voyage-time').textContent=`已航行 ${Math.floor(data.totalSailingSeconds/3600)}h ${Math.floor(data.totalSailingSeconds/60)%60}m`;}
 const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,premultipliedAlpha:true,powerPreference:'low-power'});
 renderer.setClearColor(0x000000,0);renderer.setPixelRatio(1);
 let buffer;function resizeBuffer(){buffer=drawingSize(innerWidth,innerHeight,devicePixelRatio,nativeState.settings.fps);renderer.setSize(buffer.width,buffer.height,false);}

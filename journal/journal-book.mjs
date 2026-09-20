@@ -1,5 +1,4 @@
-import {drawBadge} from '../ship-customization.mjs';
-import {badgeCatalog} from '../badges.mjs';
+import journalCover from '../assets/journal-cover.png';
 import {intentOptions} from '../voyage-intents.mjs';
 import {createShipPreview} from './ship-preview.mjs';
 import {createShipPages,element} from './ship-pages.mjs';
@@ -14,7 +13,7 @@ export function JournalBookController({renderer,ship,controls,customization,skin
  const shipPages=createShipPages({store,sailing,customization,skins,accessories,badges,journal,intents,preview,changed(rebuild=true,redraw=false){if(rebuild)preview.rebuild();cover();for(const label of root.querySelectorAll('.model-name'))label.textContent=customization.data.name;if(rebuild||redraw)render();}});
  const duration=ms=>reduced.matches?70:ms;
  function setState(value){phase=value;root.dataset.state=value;if(value!=='open'&&value!=='closed'&&root.contains(document.activeElement))closeButton.focus();navigation();}
- function cover(){const count=journal.unread();root.classList.toggle('has-clue',journal.entries().some(e=>!e.read&&!e.selectedIntentId&&intentOptions(e).length));document.querySelector('#journal-unread').hidden=!count;entry.setAttribute('aria-label',count?'航海手账，'+count+' 条新记录':'翻开航海手账');document.querySelector('#journal-cover-name').textContent=customization.data.name;document.querySelector('#journal-cover-year').textContent='A LITTLE SEA';const canvas=document.querySelector('#journal-cover-badge'),ctx=canvas.getContext('2d'),icon=badgeCatalog.find(b=>b.id===customization.data.equippedBadge)?.icon;canvas.hidden=false;ctx.clearRect(0,0,80,80);if(icon)drawBadge(ctx,icon,40,40,72);else{ctx.strokeStyle='#b3cccb';ctx.lineWidth=3;for(const y of [30,44]){ctx.beginPath();ctx.moveTo(10,y);ctx.bezierCurveTo(25,y-14,30,y+14,43,y);ctx.bezierCurveTo(53,y-12,63,y+12,72,y);ctx.stroke();}}}
+ function cover(){const count=journal.unread();root.classList.toggle('has-clue',journal.entries().some(e=>!e.read&&!e.selectedIntentId&&intentOptions(e).length));document.querySelector('#journal-unread').hidden=!count;entry.setAttribute('aria-label',customization.data.name+'的航海手账'+(count?'，'+count+' 条新记录':''));}
  function layout(){
   const w=book.offsetWidth,h=book.offsetHeight,d=dock.getBoundingClientRect(),scale=d.width/(w/2+3);dock.style.height=(h+8)*scale+'px';const rect=dock.getBoundingClientRect();
   book.style.setProperty('--dock-x',(rect.left-book.offsetLeft-w/2*scale)+'px');book.style.setProperty('--dock-y',(rect.top-book.offsetTop)+'px');book.style.setProperty('--dock-sx',scale);book.style.setProperty('--dock-sy',scale);
@@ -57,6 +56,7 @@ export function JournalBookController({renderer,ship,controls,customization,skin
  });
  journal.subscribe(()=>{cover();dirty=true;if(scheduled)return;scheduled=true;queueMicrotask(()=>{scheduled=false;if(phase==='open'&&index>=4){rebuildPages();render();}});});
  window.addEventListener('resize',()=>{layout();if(phase==='open'){rebuildPages();render();}else dirty=true;});document.addEventListener('visibilitychange',audio.sync);window.addEventListener('pagehide',audio.sync);window.addEventListener('beforeunload',()=>{audio.dispose();preview.dispose();});
+ root.querySelector('#journal-cover-art').setAttribute('href',journalCover);
  layout();cover();setState('closed');
  return {open,close,openJournal:id=>open({entryId:id,latest:true}),hit:()=>false,noteHit(x,y){const r=entry.getBoundingClientRect();return phase==='closed'&&x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;},refreshBalance:shipPages.refreshBalance,refreshAccessories(){cover();if(phase==='open'&&index===2)render();},refreshBadges(){const signature=customization.data.equippedBadge+':'+badges.views().filter(b=>b.owned).map(b=>b.id).join(',');if(signature===badgeSignature)return;badgeSignature=signature;cover();if(phase==='open'&&index===2)render();},get busy(){return phase!=='closed';},get blend(){return 0;},update(){audio.sync();},renderPreview(now){if(phase==='open'&&index<4)preview.render(now);},snapshot:()=>({phase,page:index+1,pages:pages.length,queuedClose,dockRect,preview:preview.snapshot()})};
 }

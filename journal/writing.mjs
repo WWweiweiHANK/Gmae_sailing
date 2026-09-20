@@ -8,10 +8,10 @@ import close from '../assets/journal/close.wav';
 export const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export function PencilAudioController(allowed){
  const strokes=[p0,p1,p2,p3,p4].map(src=>new Audio(src)),paper=new Audio(page),shut=new Audio(close);let timer=0,running=false;
- function play(audio,volume){if(!allowed())return;audio.currentTime=0;audio.volume=volume;audio.playbackRate=.9+Math.random()*.2;audio.play().catch(()=>{});}
- function stroke(){if(!running)return;if(allowed())play(strokes[Math.floor(Math.random()*strokes.length)],.16+Math.random()*.07);timer=setTimeout(stroke,210+Math.random()*170);}
+ function play(audio,volume){if(!allowed())return;audio.currentTime=0;audio.volume=volume;audio.playbackRate=.9+Math.random()*.2;audio.play().catch(error=>{if(error.name!=='AbortError')console.warn('手账声音未能播放',error);});}
+ function stroke(){if(!running)return;if(allowed())play(strokes[Math.floor(Math.random()*strokes.length)],.32+Math.random()*.06);timer=setTimeout(stroke,210+Math.random()*170);}
  function stop(){running=false;clearTimeout(timer);strokes.forEach(a=>a.pause());}
- return {startStroke(){stop();running=true;stroke();},pauseStroke:stop,resumeStroke(){if(!running){running=true;stroke();}},stopStroke:stop,paper(kind){play(kind==='close'?shut:paper,.15);},sync(){if(!allowed()){strokes.forEach(a=>a.pause());paper.pause();shut.pause();}},dispose(){stop();for(const a of [...strokes,paper,shut]){a.pause();a.removeAttribute('src');a.load();}}};
+ return {startStroke(){stop();running=true;stroke();},pauseStroke:stop,resumeStroke(){if(!running){running=true;stroke();}},stopStroke:stop,paper(kind){play(kind==='close'?shut:paper,.55);},sync(){if(!allowed()){strokes.forEach(a=>a.pause());paper.pause();shut.pause();}},dispose(){stop();for(const a of [...strokes,paper,shut]){a.pause();a.removeAttribute('src');a.load();}}};
 }
 export function createWritingAnimator(pencil,audio,reduced){
  function point(x,y){pencil.removeAttribute('hidden');pencil.style.left=x+'px';pencil.style.top=y+'px';}

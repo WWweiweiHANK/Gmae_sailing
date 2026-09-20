@@ -179,7 +179,7 @@ if(typeof __DEV__!=='undefined'&&__DEV__){
  window.triggerEncounter=id=>encounterDirector.startEncounter(id,encounterEnvironment(environment.snapshot()),{ignoreTiming:true});
  let accelerated=fastEncounters;Object.defineProperty(window,'DEBUG_ENCOUNTER_SPEED',{get:()=>accelerated,set:value=>{accelerated=value===true;encounterDirector.setPacing(accelerated?debugPacing():ENCOUNTER_PACING);}});
 }
-journalBook=JournalBookController({renderer,controls,ship,store,sailing,audioAllowed:()=>nativeState.settings.sound&&ambience.enabled&&active(),customization,skins,accessories,badges,journal,intents,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
+journalBook=JournalBookController({renderer,controls,ship,store,sailing,audioAllowed:()=>nativeState.settings.sound&&active(),customization,skins,accessories,badges,journal,intents,onEnter:()=>{clearTimeout(saveTimer);void bridge.action('inspect').catch(console.warn);syncScheduler();refreshBalance();if(saveError)document.querySelector('#ship-notice').textContent=saveError;},onLeave:()=>{controls.enabled=nativeState.editing;void bridge.action('inspect-end').catch(console.warn);syncScheduler();sailing.flush();}});
 // Intent debug tools use the existing isolated encounter test save only.
 if(typeof __DEV__!=='undefined'&&__DEV__&&fastEncounters){
  window.debugSetVoyageIntent=id=>intents.setIntent(id,{},true);
@@ -197,7 +197,7 @@ let pollingPointer=false;if(bridge.native)setInterval(async()=>{if(pollingPointe
  try{const point=await bridge.pointer();if(!journalBook.busy&&!nativeState.editing)await bridge.hover(journalBook.noteHit(...point));}catch(error){console.warn(error);}finally{pollingPointer=false;}
 },100);
 if(!bridge.native){try{const record=JSON.parse(localStorage.getItem('tiny-tides-view'));if(record){restoreView(record.camera);waveTarget=Math.max(0,Math.min(2,record.wave))*2.2;waveSlider.value=String(waveTarget/.022);document.querySelector('#wave-value').value=waveSlider.value+'%';}}catch{}}
-soundButton.addEventListener('click',()=>{void ambience.setEnabled(!ambience.enabled).then(enabled=>{if(enabled!==nativeState.settings.sound)return bridge.action('sound');}).catch(console.warn);});
+soundButton.addEventListener('click',()=>{void bridge.action('sound').catch(console.warn);});
 // Browsers may defer autoplay until a gesture; a deliberate mute must stay muted.
 function resumeDefaultAudio(event){if(nativeState.settings.sound&&!ambience.enabled&&!soundButton.contains(event.target))void ambience.setEnabled(true).catch(console.warn);}
 document.addEventListener('pointerdown',resumeDefaultAudio);
@@ -228,7 +228,7 @@ document.querySelector('#export').addEventListener('click',()=>{const data=repor
 function frame(now){
  if(!active()){syncScheduler();return;}raf=requestAnimationFrame(frame);
  sailing.tick(performance.now(),isSailingActive());badges.advance(renderedNight);
- const dt=clock.tick(now,true,journalBook.busy?20:nativeState.settings.fps);if(!dt)return;const cpuStart=performance.now();
+ const dt=clock.tick(now,true,journalBook.busy?20:nativeState.settings.fps);if(!dt){journalBook.renderPreview(now);return;}const cpuStart=performance.now();
  const worldDt=nativeState.paused||dt>30?0:dt;state.time+=worldDt;environment.advance(worldDt);travelTime+=worldDt;const env=environment.snapshot();latestEnvironment=env;const t=state.time,from=periodPalettes[env.fromPeriod],pal=periodPalettes[env.period],mix=env.periodBlend;
  nightMix=env.night;rainMix=env.rain;duskMix=(env.fromPeriod==='dusk'?1:0)*(1-mix)+(env.period==='dusk'?1:0)*mix;
  waveStrength.value+=(waveTarget-waveStrength.value)*(1-Math.exp(-dt*3));

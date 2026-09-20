@@ -11,6 +11,6 @@ const template = (await readFile('template.html','utf8')).replace(/<!-- GM_START
  .replace(/<script id="template-entry">[\s\S]*?<\/script>\s*/, '')
  .replace('/* JOURNAL_STYLE */',()=>readJournalCSS).replace('<!-- JOURNAL_UI -->',()=>readJournalHTML);
 const license = await readFile('THREE-LICENSE.txt','utf8');
-const output=template.replace('/* SCENE_BUNDLE */', () => result.outputFiles[0].text.replaceAll('</script','<\\/script'));
+const output=template.replace('/* SCENE_BUNDLE */', () => result.outputFiles[0].text.replaceAll('data:audio/wave;base64,','data:audio/wav;base64,').replaceAll('</script','<\\/script'));
 await writeFile(`${outputDir}/index.html`,(output+'\n<!-- Three.js license\n'+license+'\n-->\n').replace(/[\t ]+$/gm,''));
 console.log(`Built ${outputDir}/index.html — all JavaScript bundled, no CDN required${gm?', GM enabled':', GM disabled'}.`);

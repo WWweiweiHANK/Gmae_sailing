@@ -19,7 +19,8 @@ export function sanitizeJournal(value={}){
 }
 export function createJournal({store,bus,intents=null}){
  const data=sanitizeJournal(store.read()),listeners=new Set(),ids=new Set(data.journalEntries.map(e=>e.id));
- const save=()=>store.save(data),notify=()=>{for(const fn of listeners)fn();},changed=()=>{save();notify();};
+ let revision=0;
+ const save=()=>store.save(data),notify=()=>{for(const fn of listeners)fn();},changed=(layout=true)=>{if(layout)revision++;save();notify();};
  bus.subscribe((type,event)=>{
   if(type!=='encounter_completed'||event.interrupted||event.preview||!date(event.startTime)||!date(event.endTime)||typeof event.shipName!=='string'||!Number.isSafeInteger(event.seenCount)||event.seenCount<1||!Object.hasOwn(periodNames,event.timeOfDay)||!Object.hasOwn(weatherNames,event.weather))return;
   const text=journalText(event);if(!text)return;
@@ -27,16 +28,16 @@ export function createJournal({store,bus,intents=null}){
   const e=encounterCatalog.find(e=>e.id===event.encounterId),at=new Date(event.endTime);
   data.journalEntries.push({read:false,selectedIntentId:null,selectedIntentText:null,selectedIntentAt:null,respondedToIntentId:intentById(event.respondedToIntentId)?.id??null,respondedToJournalEntryId:event.respondedToJournalEntryId??null,id,timestamp:event.endTime,date:`${at.getFullYear()}-${String(at.getMonth()+1).padStart(2,'0')}-${String(at.getDate()).padStart(2,'0')}`,timeOfDay:event.timeOfDay,weather:event.weather,encounterId:event.encounterId,...text,shipName:event.shipName,firstTime:event.firstTime,seenCount:event.seenCount,badgeUnlocked:event.badgeUnlocked?e?.badgeReward??null:null,souvenirUnlocked:event.souvenirUnlocked?e?.souvenirReward??null:null});changed();
  });
- function markRead(index,includeClues=false){let touched=false;for(const entry of data.journalEntries.slice(index,index+2))if(!entry.read&&(includeClues||entry.selectedIntentId||!intentOptions(entry).length)){entry.read=true;touched=true;}if(touched){data.journalState.readCount=data.journalEntries.filter(e=>e.read).length;changed();}}
- return {save,markRead,entries:()=>structuredClone(data.journalEntries),unread:()=>data.journalEntries.filter(e=>!e.read).length,subscribe(fn){listeners.add(fn);return ()=>listeners.delete(fn);},
+ function markRead(index,includeClues=false){let touched=false;for(const entry of data.journalEntries.slice(index,index+2))if(!entry.read&&(includeClues||entry.selectedIntentId||!intentOptions(entry).length)){entry.read=true;touched=true;}if(touched){data.journalState.readCount=data.journalEntries.filter(e=>e.read).length;changed(false);}}
+ return {get revision(){return revision;},save,markRead,entries:()=>structuredClone(data.journalEntries),unread:()=>data.journalEntries.filter(e=>!e.read).length,subscribe(fn){listeners.add(fn);return ()=>listeners.delete(fn);},
   ui:()=>structuredClone(data.journalUiState),annotations:()=>structuredClone(data.journalAnnotations),
   remember(page,section){data.journalUiState.lastOpenedPage=page;data.journalUiState.lastOpenedSection=section;save();},
-  markReadIds(ids,includeClues=false){let touched=false;for(const e of data.journalEntries)if(ids.includes(e.id)&&!e.read&&(includeClues||e.selectedIntentId||!intentOptions(e).length)){e.read=true;touched=true;}if(touched){data.journalUiState.unreadEntryIds=data.journalEntries.filter(e=>!e.read).map(e=>e.id);changed();}},
+  markReadIds(ids,includeClues=false){let touched=false;for(const e of data.journalEntries)if(ids.includes(e.id)&&!e.read&&(includeClues||e.selectedIntentId||!intentOptions(e).length)){e.read=true;touched=true;}if(touched){data.journalUiState.unreadEntryIds=data.journalEntries.filter(e=>!e.read).map(e=>e.id);changed(false);}},
   annotate(a){const next={...a,timestamp:new Date().toISOString()},at=data.journalAnnotations.findIndex(e=>e.sourceJournalEntryId===a.sourceJournalEntryId&&e.slot===a.slot&&e.item===a.item);if(at<0)data.journalAnnotations.push(next);else data.journalAnnotations[at]=next;changed();},
   selectIntent(id,intentId){const entry=data.journalEntries.find(e=>e.id===id);if(!entry)return 'invalid';const result=intents?.setIntent(intentId,{sourceEncounterId:entry.encounterId,sourceJournalEntryId:entry.id});
-   if(result==='selected'){data.journalEntries=store.read().journalEntries;notify();}return result??'invalid';},
+   if(result==='selected'){data.journalEntries=store.read().journalEntries;revision++;notify();}return result??'invalid';},
   open({latest=false,entryId=null}={}){const list=data.journalEntries,unread=list.map((e,i)=>!e.read?i:-1).filter(i=>i>=0);let index=entryId?list.findIndex(e=>e.id===entryId):-1;
    if(index<0)index=latest?(unread.at(-1)??Math.max(0,list.length-1)):!data.journalState.opened?0:unread[0]??Math.max(0,list.length-1);
-   data.journalState.opened=true;changed();return Math.floor(index/2)*2;}
+   data.journalState.opened=true;changed(false);return Math.floor(index/2)*2;}
  };
 }

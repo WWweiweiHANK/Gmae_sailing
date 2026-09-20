@@ -14,4 +14,4 @@
 
 ## 手账纸笔声音
 
-`assets/journal/pencil-0.wav` 至 `pencil-4.wav`、`page.wav`、`close.wav` 是本项目通过 `node scripts/journal-audio.mjs` 生成的滤波噪声与包络纹理，并非网络采样或实地录音。以很低音量播放；铅笔随机选择五个样本并轻微变化音量／速率。所有声音继承现有声音开关，隐藏时停声。文件随 HTML 和 EXE 打包，无外部素材许可依赖。
+`assets/journal/pencil-0.wav` 至 `pencil-4.wav`、`page.wav`、`close.wav` 是本项目通过 `node scripts/journal-audio.mjs` 生成的滤波噪声与包络纹理，并非网络采样或实地录音。已提高原本过低的波形响度，保持轻柔；铅笔随机选择五个样本并轻微变化音量／速率。所有声音继承现有声音开关，隐藏时停声，不依赖海浪音频加载成功。文件以浏览器支持的 `audio/wav` 类型随 HTML 和 EXE 打包，无外部素材许可依赖。铅笔声在日志选择后的自动书写／绘画过程中播放，普通浏览不播放。

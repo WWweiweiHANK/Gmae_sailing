@@ -1,5 +1,13 @@
 # 实际验证记录 · 2026-09-17
 
+## 2026-09-21 旋转、长日志与音频实际播放
+
+- qa/journal-rotation.cjs 在 Headless Edge 同机一秒连续拖动中统计实际 Canvas 写帧：旧版 10 帧，新版 60 帧；回归要求至少 35 帧。修复预览与海洋限帧叠加，目标上限 60 FPS，不代表所有设备或 EXE 实测帧率。
+- qa/journal-volume.cjs 用隔离存档的 500 条记录生成 304 页：初次开书 1238ms（含原有 1050ms 动画），初次排版测量 9000 次。旧版读第一页后累计 18000 次；新版连续八次翻页与重开仍为 9000 次。八次完整翻页耗时 653–661ms（含 620ms 动画），书内 DOM 从 125 到 141，未挂载全部历史页。初始排版仍随内容增长，本测试不保证任意数量记录；原始数据见 qa/journal-volume-results.json。
+- 音频真实根因为构建器嵌入 audio/wave 类型，Edge play() 返回 NotSupportedError、媒体错误 4；此前仅计数 play 调用的检查不足以证明播放成功。本轮 qa/journal-audio.cjs 验证 play Promise 成功并检查 currentTime 前进，纸声样本推进至 0.265 秒、铅笔样本正常播放。主动让海浪解码失败，纸笔声仍成功；关闭声音后不再发起播放。预期停止造成的 AbortError 不作为加载失败。数据见 qa/journal-audio-results.json；未以人耳试听或原生输出音量作为已验证结果。
+- npm test 95/95；GM 网页与 QA 构建通过。最终统一浏览器回归覆盖改名、皮肤、独立旋转、日志选择与书写、长文、390／560 宽度、静音和鲸鱼跨页；30 次开合后 DOM／Audio 未增长，几何／纹理／程序保持 52／3／17，无 pageerror。不代替长期挂机、多显示器或原生交互测试。
+- Tauri GM release 构建通过（1m29s）。交付 outputs/Tiny-Tides-GM-2026-09-21-smooth-audio.exe，7146496 字节，SHA256 71EFFE79964D4CFE214FC969B11F89C4E47D824D305A1645009ED6A489DDF08B。旧 EXE 保留，本轮未启动新版 EXE 做原生交互／音频输出实测。
+
 ## 2026-09-21 纸角翻页与首次卡顿
 
 - qa/journal-smoothness.cjs 先复现一次翻页重复替换固定纸页 5 次，修复后为 2 次；回归要求禁止把大图 data URL 继续置于继承的 CSS 变量。qa/journal-turning.cjs 验证正反页内容、无残留封面控件、角落按钮触发、窄屏和减少动画。

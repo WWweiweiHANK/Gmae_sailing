@@ -60,3 +60,7 @@ test('quiet entries come only from the director after long active quiet time, at
  for(let i=0;i<200;i++)d.advance(30,env);const quiet=j.entries().filter(e=>e.encounterId==='quiet_day');assert.equal(quiet.length,1);assert.ok(d.snapshot().encounterDirectorState.time>=2700);
  for(let i=0;i<200;i++)d.advance(30,env);assert.equal(j.entries().filter(e=>e.encounterId==='quiet_day').length,1);
 });
+
+test('read flags and reading position reuse layout; content changes invalidate it',()=>{
+ const {journal:j,bus}=setup();bus.emitWorldEvent('encounter_completed',event());const revision=j.revision;j.remember(4,'voyage');j.markReadIds([j.entries()[0].id],true);assert.equal(j.revision,revision);j.annotate({slot:'skin',item:'classic',text:'小船换了模样。'});assert.equal(j.revision,revision+1);bus.emitWorldEvent('encounter_completed',event('pink_dolphin',2));assert.equal(j.revision,revision+2);
+});

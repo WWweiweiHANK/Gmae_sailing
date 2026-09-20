@@ -36,7 +36,7 @@ const ambience=createAmbientAudio(active=>{soundButton.textContent=active?'静�
 const qa=typeof __QA__!=='undefined'&&__QA__;
 const query=new URLSearchParams(location.search),scenario=qa?query.get('scenario'):null;
 const encounterQA=qa?encounterCatalog.find(e=>e.id===query.get('encounterPreview')):null;
-const initial=encounterQA?{period:encounterQA.conditions.time[0],weather:encounterQA.conditions.weather[0],disableAurora:true}:scenario==='storm'?{weather:'storm'}:scenario==='aurora'?{period:'night',aurora:true}:{};
+const initial=encounterQA?{period:encounterQA.conditions.time[0],weather:encounterQA.conditions.weather[0],disableAurora:true}:scenario==='storm'?{weather:'storm'}:scenario==='aurora'?{period:'night',aurora:true}:['day','dusk','night','dawn'].includes(scenario)?{period:scenario,disableAurora:true}:{};
 const environment=createEnvironment(Math.random,{...initial,fixed:qa});
 const clock=createFrameClock();let timer=0,raf=0,contextLost=false;
 let savedCameraApplied=false,lastNativeSound=null,saveTimer=0;
@@ -99,7 +99,7 @@ waterMat.onBeforeCompile=shader=>{shader.uniforms.uRain=waterRain;shader.uniform
 `);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=auroraWaterLight(vSeaPosition,uSeaTime)*uAuroraGlow;\ntotalEmissiveRadiance+=encounterBiolight(vSeaPosition,uSeaTime);');};
 const water=mesh(wg,waterMat);water.castShadow=false;
 const boat=createBoatModel(store.read().shipCustomization.skinId),ship=boat.ship;scene.add(ship);
-const {hull:hullMat,roof:roofMat,stripe:stripeMat,glass,lamp:lampMat}=boat.materials,shipLight=boat.shipLight;
+const {hull:hullMat,roof:roofMat,stripe:stripeMat}=boat.materials;
 const wingMat=mat(0xf9fbf5,{side:THREE.DoubleSide});const wingTipMat=mat(0xb0c1c6,{side:THREE.DoubleSide});const birds=[];
 for(let i=0;i<4;i++){
  const g=new THREE.Group();scene.add(g);const body=ball(.105,white,g,0,0,0);body.scale.set(.62,.68,1.8);const head=ball(.065,white,g,0,.065,.155);const wings=[];
@@ -199,7 +199,7 @@ document.addEventListener('freeze',suspendPage);document.addEventListener('resum
 canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();contextLost=true;syncScheduler();showError('图形上下文已暂停；恢复后自动继续。');});
 canvas.addEventListener('webglcontextrestored',()=>{contextLost=false;document.querySelector('#error').hidden=true;syncScheduler();});
 let latestEnvironment=environment.snapshot();
-function report(){return {...monitor.report(),environment:latestEnvironment,encounters:encounterDirector?.snapshot(),paused:!active(),camera:cameraRecord(),audio:{requested:nativeState.settings.sound,playing:ambience.enabled,loaded:ambience.loaded},rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,ownedColors:store.read().ownedColors,ownedBadges:store.read().ownedBadges,badgeProgress:badges.progress(),seenBadgeNotifications:store.read().seenBadgeNotifications,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
+function report(){return {...monitor.report(),environment:latestEnvironment,shipLighting:{point:boat.shipLight.intensity,lamp:boat.materials.lamp.emissiveIntensity,windows:boat.materials.glass.emissiveIntensity},encounters:encounterDirector?.snapshot(),paused:!active(),camera:cameraRecord(),audio:{requested:nativeState.settings.sound,playing:ambience.enabled,loaded:ambience.loaded},rendererCount:1,wakeCapacity:wake.capacity,alphaCorners:lastAlpha,shipCustomization:customization.data,ownedColors:store.read().ownedColors,ownedBadges:store.read().ownedBadges,badgeProgress:badges.progress(),seenBadgeNotifications:store.read().seenBadgeNotifications,showcase:showcase?.snapshot(),travelTime,sailingData:sailing.snapshot(),isSailingActive:isSailingActive(),sailingIntervalSeconds:sailingConfig(development,fastSailing).intervalSeconds};}
 let lastAlpha=null,diagnosticAt=0,startupRecorded=false;
 if(document.modelContext?.registerTool){document.modelContext.registerTool({name:'get_ocean_state',title:'查看桌宠状态与实测性能',description:'只读场景状态、帧率、CPU提交时间及资源数量。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:report});}
 if(typeof __DEV__!=='undefined'&&__DEV__&&fastSailing&&document.modelContext?.registerTool)document.modelContext.registerTool({name:'debug_badge_event',title:'测试存档：触发徽章事件',description:'仅独立开发存档可用；模拟体验事件或直接解锁徽章，正常存档和正式包没有此入口。',inputSchema:{type:'object',properties:{type:{type:'string'},badgeId:{type:'string'}},additionalProperties:false},execute:({type,badgeId})=>({result:badgeId?badges.unlockBadge(badgeId,{sourceEventId:'debug'}):worldEventBus.emitWorldEvent(type,{sourceEventId:'debug-event'}),ownedBadges:store.read().ownedBadges})});
@@ -235,7 +235,7 @@ function frame(now){
   wings[0].rotation.z=Math.sin(t*2.4+phase)*.18;wings[1].rotation.z=-Math.sin(t*2.4+phase)*.18;
  });
  moonGroup.scale.setScalar(Math.max(.001,nightMix*.56));moonGroup.rotation.y=Math.sin(t*.12)*.1;
- const lampMix=Math.max(nightMix,duskMix*.7,rainMix*.5);glass.color.lerp(tint.setHex(lampMix>.3?0xffd68b:0x91b7cc),1-Math.exp(-dt*1.8));glass.emissive.setHex(0xffb642);glass.emissiveIntensity=lampMix*1.2;lampMat.emissiveIntensity=lampMix*2;shipLight.intensity=lampMix*3.5;
+ boat.updateLighting(env);
  rainMat.opacity=Math.min(.48,rainMix*.6);rainGeo.setDrawRange(0,Math.floor(150+rainMix*950)*2);rain.visible=rainMix>.005;
  if(rain.visible){for(let i=0;i<rainCount;i++){const r=rainMeta[i];r.y-=dt*r.speed*(.7+rainMix*.9);if(r.y<.1)r.y=.1+((r.y-.1)%5.1+5.1)%5.1;const k=i*6;rainArray[k]=r.x;rainArray[k+1]=r.y;rainArray[k+2]=r.z;rainArray[k+3]=r.x-.025-rainMix*.12;rainArray[k+4]=r.y+.12+rainMix*.18;rainArray[k+5]=r.z;}rainGeo.attributes.position.needsUpdate=true;}
  ripples.forEach(r=>{const a=(t*.65+r.userData.phase)%1;r.visible=rain.visible;if(!r.visible)return;r.scale.setScalar(.2+a*1.5);r.material.opacity=rainMix*(1-a)*.4;r.position.y=.025+wave(r.position.x,r.position.z,t);});

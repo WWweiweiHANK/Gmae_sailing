@@ -3,6 +3,22 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {createGameSave,GAME_SAVE_KEY} from './game-save.mjs';
 let skinModule={},modelModule={};try{skinModule=await import('./boat-skins.mjs');modelModule=await import('./boat-model.mjs');}catch{}
+
+test('boat lights follow smooth time-of-day transitions, not daytime rain, and stay at the fitted lamp',async()=>{
+ const {createBoatAccessories,DEFAULT_ACCESSORIES}=await import('./boat-accessories.mjs'),boat=modelModule.createBoatModel(),fittings=createBoatAccessories(boat);
+ fittings.apply(DEFAULT_ACCESSORIES);
+ assert.equal(boat.materials.lamp.emissiveIntensity,0);assert.equal(boat.materials.glass.emissiveIntensity,0);
+ for(const skin of ['classic','rounded','tall','light','wide','speedy','square','explorer','gentle']){
+  boat.setSkin(skin);fittings.apply(DEFAULT_ACCESSORIES);
+  for(const weather of ['clear','drizzle','storm']){boat.updateLighting({fromPeriod:'day',period:'day',periodBlend:1,weather,rain:1});assert.equal(boat.shipLight.intensity,0);assert.equal(boat.materials.lamp.emissiveIntensity,0);}
+  const brightness=[];for(const mix of [0,.25,.5,.75,1]){boat.updateLighting({fromPeriod:'day',period:'night',periodBlend:mix});brightness.push(boat.shipLight.intensity);}
+  assert.ok(brightness.every((value,i)=>i===0||value>brightness[i-1]));assert.ok(brightness.at(-1)<=.3);assert.ok(boat.materials.glass.emissiveIntensity<.3);
+  assert.ok(boat.shipLight.position.distanceTo(boat.mounts.flag.position.clone().add(new THREE.Vector3(0,.565,0)))<.001);
+  boat.updateLighting({fromPeriod:'night',period:'dawn',periodBlend:1});assert.ok(boat.shipLight.intensity<brightness.at(-1)*.2);
+  boat.updateLighting({fromPeriod:'dawn',period:'day',periodBlend:1});assert.equal(boat.shipLight.intensity,0);
+ }
+ fittings.apply({...DEFAULT_ACCESSORIES,flag:null});boat.updateLighting({fromPeriod:'night',period:'night',periodBlend:1});assert.equal(boat.shipLight.intensity,0,'no floating light if mast is removed');
+});
 test('skin selection replaces the whole boat, persists and never spends sailing points',()=>{
  assert.equal(typeof skinModule.createBoatSkins,'function');const disk=new Map(),storage={getItem:k=>disk.get(k)??null,setItem:(k,v)=>disk.set(k,v)},store=createGameSave(storage);store.save({sailingData:{points:91,totalSailingSeconds:800},shipCustomization:{name:'晚风号'},ownedColors:['mint']});
  const custom={data:store.read().shipCustomization,update(p){Object.assign(this.data,p);}},skins=skinModule.createBoatSkins({store,customization:custom});

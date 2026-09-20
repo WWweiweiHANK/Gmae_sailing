@@ -11,7 +11,16 @@ export function createBoatModel(initial='classic'){
  const materials=Object.fromEntries(['hull','keel','roof','cabin','chimney','cap','rail','stripe'].map(key=>[key,material('#ffffff')]));
  materials.deck=material('#fff3d7');materials.front=material('#fff2d4');materials.ring=material('#6e9db9');materials.glass=material('#91b7cc');materials.warm=material('#f7df9c');materials.port=material('#18374b');materials.lamp=material('#ffdf94');materials.lamp.emissive.set('#ffc366');materials.glass.emissive.set('#ffcb81');materials.warm.emissive.set('#ffd792');materials.warm.emissiveIntensity=.13;
  const primitives={box:new RoundedBoxGeometry(1,1,1,1,.035),cylinder:new THREE.CylinderGeometry(1,1,1,8),port:new THREE.CylinderGeometry(1,1,1,12),ring:new THREE.TorusGeometry(.12,.032,6,16)};
- const shipLight=new THREE.PointLight(0xffc67f,0,4,2);shipLight.position.set(0,1.25,.6);ship.add(shipLight);
+ const shipLight=new THREE.PointLight(0xffc67f,0,2.2,2);ship.add(shipLight);
+ const windowDay=new THREE.Color('#91b7cc'),windowNight=new THREE.Color('#dcc9a6'),lampLevel={day:0,dusk:.38,night:1,dawn:.10};
+ materials.lamp.emissiveIntensity=0;materials.glass.emissiveIntensity=0;materials.warm.emissiveIntensity=0;
+ function updateLighting({fromPeriod,period,periodBlend}){
+  const from=lampLevel[fromPeriod]??0,to=lampLevel[period]??0,level=from+(to-from)*THREE.MathUtils.clamp(periodBlend,0,1);
+  materials.glass.color.lerpColors(windowDay,windowNight,level);materials.glass.emissiveIntensity=level*.22;
+  materials.lamp.emissiveIntensity=level*.65;materials.warm.emissiveIntensity=level*.10;
+  shipLight.position.copy(mounts.flag.position);shipLight.position.y+=.565;
+  shipLight.intensity=mounts.flag.children.length?level*.22:0;
+ }
  let body=null,skinId=null,unique=[];
  function add(geometry,mat,x=0,y=0,z=0,sx=1,sy=1,sz=1){const mesh=new THREE.Mesh(geometry,mat);mesh.position.set(x,y,z);mesh.scale.set(sx,sy,sz);mesh.castShadow=true;mesh.receiveShadow=true;body.add(mesh);return mesh;}
  const box=(w,h,d,mat,x,y,z)=>add(primitives.box,mat,x,y,z,w,h,d);
@@ -78,5 +87,5 @@ export function createBoatModel(initial='classic'){
   return true;
  }
  setSkin(initial);
- return {ship,mounts,materials,shipLight,setSkin,get skinId(){return skinId;}};
+ return {ship,mounts,materials,shipLight,setSkin,updateLighting,get skinId(){return skinId;}};
 }

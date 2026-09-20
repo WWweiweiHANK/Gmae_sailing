@@ -1,0 +1,45 @@
+{
+  "results": [
+    {
+      "scenario": "day",
+      "lighting": {
+        "point": 0,
+        "lamp": 0,
+        "windows": 0
+      }
+    },
+    {
+      "scenario": "storm",
+      "lighting": {
+        "point": 0,
+        "lamp": 0,
+        "windows": 0
+      }
+    },
+    {
+      "scenario": "dusk",
+      "lighting": {
+        "point": 0.08360000000000001,
+        "lamp": 0.24700000000000003,
+        "windows": 0.08360000000000001
+      }
+    },
+    {
+      "scenario": "night",
+      "lighting": {
+        "point": 0.22,
+        "lamp": 0.65,
+        "windows": 0.22
+      }
+    },
+    {
+      "scenario": "dawn",
+      "lighting": {
+        "point": 0.022000000000000002,
+        "lamp": 0.065,
+        "windows": 0.022000000000000002
+      }
+    }
+  ],
+  "errors": []
+}

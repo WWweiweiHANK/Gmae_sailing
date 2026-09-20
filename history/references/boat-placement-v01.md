@@ -9,6 +9,8 @@
 
 ## 图片
 
+2026-09-20 用户选择保留：C1、全部 B1–B9、D1、D5、A1、A2、A4、A5、A6、A9，共 18 件。其余 18 件退出当前装备列表；原图作为历史审图保留。这是品类选择，不等于把所有比例和放置细节设为最终标准。随机事件一对一绑定与未匹配项处理仍待明确；本文件不把建议映射当成已实现。
+
 - [挂件 · 单件装船审图](boat-placement-charms-v01.png)
 - [徽章 · 单件装船审图](boat-placement-emblems-v01.png)
 - [甲板摆件 · 单件装船审图](boat-placement-deck-v01.png)
@@ -56,4 +58,3 @@ Nine independent optional components, one per otherwise plain boat. Row-major la
 "D9 绿植箱": small wood rectangular box of distinct pointed green succulent leaves on free upper roof rear-right portion, width .14L and height .10L, no cactus cylinders; clear mast and chimney.
 Title "组件 · 单件装船审图". Keep blank ivory nameplate on all boats. Exactly one changed component per panel, no extra accessories.
 ```
-

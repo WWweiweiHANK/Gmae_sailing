@@ -4,10 +4,10 @@ import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js'
 export const accessorySlots={flag:'旗子',deck:'前甲板',chimney:'烟囱',lifering:'救生圈 / 徽章',nameplate:'船名牌',charm:'挂件',roof:'顶板'};
 const row=(ids,names,slots,y,start,step)=>ids.split(' ').map((id,i)=>({id,name:names.split(' ')[i],slots,thumb:[start+i*step,y]}));
 export const accessoryCatalog=[
- ...row('dolphin-charm pink-dolphin whale-tail shooting-stars aurora-crystal bottle shell rain-cloud lantern','海豚挂件 粉色海豚 鲸尾吊饰 流星串饰 极光吊饰 漂流瓶 贝壳挂件 雨云挂件 小灯笼',['charm'],155,28,83.5),
+ ...row('dolphin-charm pink-dolphin whale-tail shooting-stars aurora-crystal bottle shell rain-cloud lantern','海豚挂件 粉色海豚 鲸尾吊饰 流星串饰 极光吊饰 漂流瓶 贝壳挂件 雨云挂件 小灯笼',['charm'],155,28,83.5).filter(a=>!['whale-tail','shell','rain-cloud'].includes(a.id)),
  ...row('lifering wheel whale-emblem star sunset gull-emblem snowflake wave anchor','救生圈 船舵徽章 鲸鱼徽章 星辰徽章 黄昏徽章 飞鸟徽章 冰晶徽章 海浪徽章 锚徽章',['lifering'],185,815,78),
- ...row('polar-bear lighthouse aurora-globe glow-bottle seabird whale snow-globe memory-flag luggage','北极熊摆件 灯塔摆件 极光球 发光海瓶 海鸟摆件 鲸鱼摆件 雪景球 纪念小旗 行李箱',['deck','roof'],439,30,83.5),
- ...row('flag-red chimney-orange roof-lamp canopy bunting fenders windmill deck-chair plant','特别旗帜 烟囱样式 顶部灯塔 遮阳棚 彩旗 船侧浮标 小风车 甲板躺椅 绿植箱',['roof'],435,813,79),
+ ...row('polar-bear','北极熊摆件',['deck','roof'],439,30,83.5),
+ ...row('flag-red chimney-orange roof-lamp canopy bunting fenders windmill deck-chair plant','特别旗帜 烟囱样式 顶部灯塔 遮阳棚 彩旗 船侧浮标 小风车 甲板躺椅 绿植箱',['roof'],435,813,79).filter(a=>['flag-red','bunting'].includes(a.id)),
  {id:'chimney-skin',name:'船型原装',slots:['chimney']},
  {id:'plate-ivory',name:'奶油铭牌',slots:['nameplate']},{id:'plate-wood',name:'木色铭牌',slots:['nameplate']},{id:'plate-blue',name:'海蓝铭牌',slots:['nameplate']}
 ];

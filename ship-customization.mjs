@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {colorCatalog} from './color-catalog.mjs';
 import {badgeId,badgeCatalog} from './badges.mjs';
 import {boatSkin} from './boat-skins.mjs';
@@ -74,12 +75,15 @@ export function createShipCustomization(ship,{hull,roof,stripe},onNotice,saved,o
  const material=new THREE.MeshStandardMaterial({map:texture,transparent:true,roughness:1,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
  let displayedBadge=data.equippedBadge,fadePhase='idle';
  const geometry=new THREE.PlaneGeometry(1.02,.205);
+ const plateMaterial=boat?new THREE.MeshStandardMaterial({color:'#fff9ec',roughness:.88}):null,plateGeometry=boat?new RoundedBoxGeometry(1.03,.21,.027,2,.018):null;
  for(const side of [-1,1]){
   const label=new THREE.Mesh(geometry,material);label.name='ship-name-and-badge';
   label.userData.side=side;label.position.set(side*(boat?boat.mounts.nameplate.userData.sideOffset:.656),boat?0:.265,boat?0:-.12);label.rotation.y=side*Math.PI/2;(boat?boat.mounts.nameplate:ship).add(label);
+  if(boat){const backing=new THREE.Mesh(plateGeometry,plateMaterial);backing.position.z=-.015;label.add(backing);}
  }
  function apply(){
   const plate=data.accessories.nameplate;ctx.clearRect(0,0,768,160);ctx.fillStyle=plate==='plate-wood'?'#dfbf91':plate==='plate-blue'?'#bcdce6':'#fff9ec';ctx.beginPath();ctx.roundRect(4,8,760,144,28);ctx.fill();
+  plateMaterial?.color.set(ctx.fillStyle);
   ctx.strokeStyle='#728a8a';ctx.lineWidth=3;ctx.stroke();
   const offset=displayedBadge?154:30;
   if(displayedBadge)drawBadge(ctx,displayedBadge,82,80,125);

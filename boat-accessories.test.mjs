@@ -41,3 +41,24 @@ test('all reference ornaments fit their reserved envelopes and reuse resources a
  fittings.apply({...accessories.DEFAULT_ACCESSORIES,charm:'dolphin-charm'});fittings.animate(1);const before=boat.mounts.charm.children[0].rotation.z;fittings.animate(1);assert.notEqual(boat.mounts.charm.children[0].rotation.z,before);
  fittings.apply({...accessories.DEFAULT_ACCESSORIES,charm:null});assert.equal(boat.mounts.charm.children.length,0);
 });
+
+test('remodeled assembly has a broad tapered funnel, readable souvenirs and a short pendant cord',()=>{
+ const boat=createBoatModel(),fittings=accessories.createBoatAccessories(boat);fittings.apply({...accessories.DEFAULT_ACCESSORIES,deck:'lighthouse',roof:'plant',charm:'dolphin-charm'});boat.ship.updateMatrixWorld(true);
+ const size=slot=>new THREE.Box3().setFromObject(boat.mounts[slot]).getSize(new THREE.Vector3());
+ assert.ok(size('chimney').x>=.36,'funnel must be broad, not a narrow tube');
+ assert.ok(size('deck').y>=.38,'lighthouse must remain recognizable beside the cabin');
+ assert.ok(size('roof').x>=.30&&size('roof').y>=.26,'plant box needs readable fanning leaves');
+ assert.ok(size('charm').y>=.27&&size('charm').y<=.46,'pendant should be visible without reaching the keel');
+ const dolphin=boat.mounts.charm.getObjectByName('dolphin-body');assert.ok(dolphin?.isMesh,'dolphin has a continuous curved body');
+ const ring=boat.mounts.lifering.children[0];const ray=new THREE.Raycaster(new THREE.Vector3(1,boat.mounts.lifering.position.y,-.13),new THREE.Vector3(-1,0,0));assert.equal(ray.intersectObject(ring,true).length,0,'lifebuoy has a true open center');
+ const before=boat.mounts.charm.children[0].rotation.z;fittings.animate(0);assert.equal(boat.mounts.charm.children[0].rotation.z,before);
+});
+
+test('sculpture details face outward and the whale meets its display stand',()=>{
+ const boat=createBoatModel(),fittings=accessories.createBoatAccessories(boat);fittings.apply({...accessories.DEFAULT_ACCESSORIES,deck:'whale',roof:'plant'});boat.ship.updateMatrixWorld(true);
+ const leaf=boat.mounts.roof.getObjectByName('plant-leaf'),position=leaf?.geometry.attributes.position,index=leaf?.geometry.index;assert.ok(leaf);
+ let volume=0;for(let i=0;i<index.count;i+=3){const a=new THREE.Vector3().fromBufferAttribute(position,index.getX(i)),b=new THREE.Vector3().fromBufferAttribute(position,index.getX(i+1)),c=new THREE.Vector3().fromBufferAttribute(position,index.getX(i+2));volume+=a.dot(b.cross(c))/6;}assert.ok(volume>0,'leaf outward faces must not be culled');
+ const whale=boat.mounts.deck.getObjectByName('whale-body'),eye=boat.mounts.deck.getObjectByName('whale-eye'),support=boat.mounts.deck.getObjectByName('whale-stand');assert.ok(eye&&support);
+ const bounds=new THREE.Box3().setFromObject(whale),eyeBounds=new THREE.Box3().setFromObject(eye);assert.ok(eyeBounds.max.z>bounds.max.z*.9,'whale eye must sit on the outside of its head');
+ const standBounds=new THREE.Box3().setFromObject(support);assert.ok(standBounds.max.y>=bounds.min.y,'whale sculpture must meet its support');
+});

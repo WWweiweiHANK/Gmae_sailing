@@ -19,7 +19,7 @@ const fs=require('node:fs/promises');
    await page.waitForTimeout(5100);resources.push((await state()).last);
   }
   assert.equal(resources[0].geometries,resources[1].geometries);assert.equal(resources[0].textures,resources[1].textures);assert.equal(resources[0].programs,resources[1].programs);
-  const fitted={flag:'flag-red',deck:'lighthouse',chimney:'chimney-orange',lifering:'lifering',nameplate:'plate-wood',charm:'aurora-crystal',roof:'plant'};
+  const fitted={flag:'flag-red',deck:'lighthouse',chimney:'chimney-orange',lifering:'lifering',nameplate:'plate-ivory',charm:'dolphin-charm',roof:'plant'};
   for(const [slot,id] of Object.entries(fitted)){await page.locator('#accessory-slot').selectOption(slot);await page.locator(`[data-accessory="${id}"]`).click();}
   await page.locator('#tab-skins').click();
   for(const id of ['classic','rounded','tall','light','wide','speedy','square','explorer','gentle']){await page.locator(`[data-skin="${id}"]`).click();assert.deepEqual((await state()).shipCustomization.accessories,fitted);await page.waitForTimeout(80);await page.screenshot({path:`qa/fittings-${id}.png`,clip:{x:0,y:0,width:1100,height:520}});}

@@ -5,4 +5,5 @@ desktop-dist/
 qa-preview/
 qa/*.exe
 qa/*.pdb
+qa/model-review.html
 src-tauri/gen/

@@ -1,6 +1,6 @@
 // Whole-boat presets from the supplied nine-boat reference. All are freely selectable.
 export const boatSkinCatalog=[
- {id:'classic',name:'经典款',en:'CLASSIC',description:'双层船舱 · 杏桃船身',form:'classic',width:.68,cabinHeight:.56,upper:.28,hull:'#c88e77',keel:'#213e55',roof:'#b9bf97',cabin:'#fff1cf',chimney:'#ed8045',cap:'#29445e',rail:'#becdd0',stripe:'#416b61'},
+ {id:'classic',name:'经典款',en:'CLASSIC',description:'双层船舱 · 杏桃船身',form:'classic',width:.68,cabinHeight:.56,upper:.28,hull:'#e5a087',keel:'#213e55',roof:'#b2bc92',cabin:'#fff1cf',chimney:'#ed8045',cap:'#29445e',rail:'#c8d2cf',stripe:'#416b61'},
  {id:'rounded',name:'圆润款',en:'ROUNDED',description:'圆弧船头 · 雾蓝屋顶',form:'rounded',width:.72,cabinHeight:.68,upper:0,hull:'#7cb4c9',keel:'#365b79',roof:'#88c4da',cabin:'#fff1d0',chimney:'#e4e6df',cap:'#497b9d',rail:'#becdd0',stripe:'#fff0d1'},
  {id:'tall',name:'高层款',en:'TALL',description:'高高船楼 · 草莓珊瑚',form:'classic',width:.69,cabinHeight:.63,upper:.40,hull:'#df9393',keel:'#a95c65',roof:'#f08f94',cabin:'#fff0d2',chimney:'#df7473',cap:'#de6c70',rail:'#c1ced0',stripe:'#f9d9c4'},
  {id:'light',name:'轻盈款',en:'LIGHT',description:'轻巧窄身 · 深海藏蓝',form:'light',width:.60,cabinHeight:.68,upper:0,hull:'#354f6b',keel:'#263b51',roof:'#4b6d90',cabin:'#42617e',chimney:'#8094a0',cap:'#315a7b',rail:'#b7c8cf',stripe:'#d6e2e0'},

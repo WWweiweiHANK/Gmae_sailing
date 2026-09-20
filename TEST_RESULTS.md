@@ -1,5 +1,12 @@
 # 实际验证记录 · 2026-09-17
 
+## 2026-09-21 透明背景与未读提示
+
+- 新增 qa/journal-notice.cjs，隔离来源生成两条测试记录。修改前开书遮罩背景 rgb(25,54,64)，未读提示仍是“航海日志”且 opacity 为 0；修改后遮罩 rgba(0,0,0,0)，无背景图片，关闭状态常驻“2 条新旅行日志”（opacity 为 1），侧边显示“新日志 2”。
+- 验证纸条跳到最早未读而非最后一篇；普通记录读完数量降至 1，剩余线索在阅读并主动合书后清除。书外点击仍能关闭，390×700 提示未越界，减少动画与 Escape 通过，无 pageerror。560×540 关闭／打开与窄屏截图为 qa/journal-notice-closed.png、journal-notice-open.png、journal-notice-narrow.png，已目视核对。
+- npm test 95/95；GM 网页与 QA 构建通过。最终统一浏览器回归通过改名、旋转、九款皮肤、日志选择／书写、长文分页、窄屏和静音；30 次开合 DOM／Audio 无增长，几何／纹理／程序仍为 52／3／17，无 pageerror。开书动画中与打开完成后都验证背景透明；未将浏览器透明样式与截图检查视为 Windows 原生窗口或不同壁纸实测。
+- Tauri GM release 构建通过（2m15s）。交付 outputs/Tiny-Tides-GM-2026-09-21-notice.exe，7147008 字节，SHA256 517626A09C0942CEEC739E03032586CDB65BEB85C1082BBD30DBAF8F61011F45；旧包保留，本轮未启动交付 EXE 做原生交互回归。
+
 ## 2026-09-21 旋转、长日志与音频实际播放
 
 - qa/journal-rotation.cjs 在 Headless Edge 同机一秒连续拖动中统计实际 Canvas 写帧：旧版 10 帧，新版 60 帧；回归要求至少 35 帧。修复预览与海洋限帧叠加，目标上限 60 FPS，不代表所有设备或 EXE 实测帧率。

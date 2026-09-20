@@ -158,7 +158,10 @@ const customization=createShipCustomization(ship,{hull:hullMat,roof:roofMat,stri
  shipCustomization=>store.save({shipCustomization,sailingData:sailing.snapshot()}),boat);
 const skins=createBoatSkins({store,customization});
 const accessories=createAccessoryEquipment({store,customization,preview:typeof __GM__!=='undefined'&&__GM__});
-document.documentElement.style.setProperty('--accessory-sheet',`url("${accessorySheet}")`);
+// Parse the large embedded atlas once; inherited CSS variables reparse it on first page layout.
+const accessoryStyle=document.createElement('style');
+accessoryStyle.textContent=`.accessory-thumb:not(.accessory-symbol){background-image:url("${accessorySheet}")}`;
+document.head.append(accessoryStyle);
 badges=createBadges({store,customization,bus:worldEventBus,total:()=>sailing.snapshot().totalSailingSeconds,config:typeof __DEV__!=='undefined'&&__DEV__&&fastSailing?{first_voyage:30,old_sailor:120,starry_night:10}:{},onChange:()=>journalBook?.refreshBadges()});
 if(typeof __DEV__!=='undefined'&&__DEV__){window.debugUnlockBadge=id=>badges.unlockBadge(id,{sourceEventId:'debug'});window.emitWorldEvent=worldEventBus.emitWorldEvent;}
 const debugPacing=()=>({...ENCOUNTER_PACING,windows:{ambient:[10,20],special:[20,40],wonder:[40,60]},firstAmbient:[10,15],quietAfterMajor:[5,8],wonderGap:45,cooldownScale:.01});

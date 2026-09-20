@@ -8,10 +8,10 @@
    <div class="book-cover" aria-hidden="true"><div class="cover-front"><svg class="cover-art" viewBox="154 30 288 536" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><defs><clipPath id="cover-art-crop"><rect x="154" y="30" width="288" height="536" rx="10"/></clipPath></defs><image id="journal-cover-art" width="600" height="600" clip-path="url(#cover-art-crop)"/></svg><span id="journal-unread" class="journal-bookmark" hidden></span></div><div class="cover-back"></div></div>
   </div>
   <button id="journal-open" type="button" aria-label="翻开航海日志" title="航海日志"></button>
-  <button class="journal-edge journal-prev" type="button" aria-label="上一页" title="上一页 · ←"></button>
-  <button class="journal-edge journal-next" type="button" aria-label="下一页" title="下一页 · →"></button>
-  <nav class="journal-navigation" aria-label="日志翻页"><button id="journal-prev" type="button" aria-label="上一页">←</button><span id="journal-page-number" role="status" aria-live="polite"></span><button id="journal-next" type="button" aria-label="下一页">→</button></nav>
-  <nav class="journal-chapters" aria-label="手账章节"><button type="button" data-chapter="ship">我的船</button><button type="button" data-chapter="voyage">航海</button></nav><p id="ship-notice" role="status"></p><span class="journal-hint">点击纸页边缘，慢慢翻阅</span>
+  <button id="journal-prev" class="journal-edge journal-prev" type="button" aria-label="上一页" title="上一页 · ←"></button>
+  <button id="journal-next" class="journal-edge journal-next" type="button" aria-label="下一页" title="下一页 · →"></button>
+  <div class="journal-navigation"><span id="journal-page-number" role="status" aria-live="polite"></span></div>
+  <nav class="journal-chapters" aria-label="手账章节"><button type="button" data-chapter="ship">我的船</button><button type="button" data-chapter="voyage">航海</button></nav><p id="ship-notice" role="status"></p><span class="journal-hint">轻触纸角翻页 · 也可使用 ← →</span>
  </div>
  <span class="journal-dock-label" aria-hidden="true">航海日志</span>
  <button id="journal-close" type="button" aria-label="合上日志，返回航行" title="合上日志 · Esc">×</button>

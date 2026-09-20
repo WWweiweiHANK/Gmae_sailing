@@ -35,13 +35,16 @@ export function JournalBookController({renderer,ship,controls,customization,skin
  async function close(){
   if(phase==='closed'||phase==='closing')return;if(phase!=='open'){queuedClose=true;return;}read(true);prepareCover();queuedClose=false;setState('closing');preview.bind(null);audio.stopStroke();audio.paper('close');layout();root.classList.add('is-closing');await wait(duration(900));root.classList.remove('is-open','is-opening','is-closing');document.body.dataset.journal='false';root.setAttribute('role','group');root.removeAttribute('aria-modal');entry.inert=false;root.querySelector('.cover-back').replaceChildren();setState('closed');controls.enabled=savedControls;onLeave();cover();(previousFocus?.isConnected&&previousFocus!==document.body?previousFocus:entry).focus();
  }
- async function flipTo(target,ms=760){
-  target=Math.max(0,Math.min(pages.length-2,target-target%2));const forward=target>=index;preview.bind(null);const source=forward?right:left;
-  copyPage(source,flip.querySelector('.page-front'));
-  const destination=element('div');paint(destination,forward?target:target+1);copyPage(destination,flip.querySelector('.page-back'));paint(forward?right:left,forward?target+1:target);preview.bind(null);
-  flip.hidden=false;flip.className='flip-page';flip.style.setProperty('--flip-duration',duration(ms)+'ms');void flip.offsetWidth;flip.classList.add(forward?'next':'prev');spread.classList.add('turning');audio.paper('page');await wait(duration(ms));index=target;flip.hidden=true;flip.className='flip-page';spread.classList.remove('turning');flip.querySelector('.page-front').replaceChildren();flip.querySelector('.page-back').replaceChildren();render();
+ async function flipTo(target,ms=620){
+  target=Math.max(0,Math.min(pages.length-2,target-target%2));const forward=target>=index,front=flip.querySelector('.page-front'),back=flip.querySelector('.page-back');preview.bind(null);
+  copyPage(forward?right:left,front);paint(back,forward?target:target+1);paint(forward?right:left,forward?target+1:target);preview.bind(null);
+  flip.hidden=false;flip.className='flip-page';spread.style.setProperty('--flip-duration',duration(ms)+'ms');spread.classList.add('turning');
+  await new Promise(requestAnimationFrame);flip.classList.add(forward?'next':'prev');audio.paper('page');
+  const animation=flip.getAnimations().find(a=>a.animationName===(forward?'journal-next':'journal-prev'));
+  if(animation)await animation.finished.catch(()=>{});else await wait(duration(ms));
+  (forward?left:right).replaceChildren(...back.childNodes);index=target;flip.hidden=true;flip.className='flip-page';front.replaceChildren();spread.classList.remove('turning');preview.bind(right.querySelector('.journal-ship-model'));navigation();
  }
- async function turn(target,chapter=false){if(phase!=='open'||target===index||target<0||target>=pages.length)return;setState('flipping');if(chapter){const from=index;for(let n=1;n<=3;n++)await flipTo(n===3?target:Math.round((from+(target-from)*n/3)/2)*2,180);}else await flipTo(target);setState('open');if(dirty)rebuildPages();render();if(queuedClose)void close();}
+ async function turn(target,chapter=false){if(phase!=='open'||target===index||target<0||target>=pages.length)return;setState('flipping');await flipTo(target,chapter?700:620);setState('open');if(dirty){rebuildPages();render();}else{journal.remember(index,index<4?'ship':'voyage');read();}if(queuedClose)void close();}
  async function choose(entry,option,node){
   if(phase!=='open')return;setState('writing');pending={id:entry.id,written:new Set(),drawn:false};const result=journal.selectIntent(entry.id,option.id);if(result!=='selected'){pending=null;setState('open');document.querySelector('#ship-notice').textContent='这句话还没能保存，请稍后再写。';return;}
   node.closest('.journal-content').classList.add('intent-writing');await wait(duration(250));rebuildPages();render();

@@ -11,7 +11,7 @@ export function createShipPreview(renderer,ship){
  const size=320,target=new THREE.WebGLRenderTarget(size,size,{depthBuffer:true});target.texture.colorSpace=THREE.SRGBColorSpace;
  const pixels=new Uint8Array(size*size*4),frame=new ImageData(size,size),clear=new THREE.Color();let copy=null,canvas=null,last=0,yaw=.65,pitch=.37,drag=null;
  function rebuild(){if(copy)scene.remove(copy);copy=clonePreviewShip(ship);scene.add(copy);}
- function bind(next){canvas=next;if(!next)return;next.width=next.height=size;next.tabIndex=0;next.setAttribute('aria-label','小船记录模型，拖动或使用方向键旋转');
+ function bind(next){canvas=next;if(!next)return;next.width=next.height=size;next.getContext('2d').putImageData(frame,0,0);next.tabIndex=0;next.setAttribute('aria-label','小船记录模型，拖动或使用方向键旋转');
   next.onpointerdown=e=>{if(e.button!==0)return;drag={id:e.pointerId,x:e.clientX,y:e.clientY};next.setPointerCapture(e.pointerId);};
   next.onpointermove=e=>{if(!drag||drag.id!==e.pointerId)return;yaw-=(e.clientX-drag.x)*.012;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-drag.y)*.008,.12,.8);drag.x=e.clientX;drag.y=e.clientY;};
   next.onpointerup=next.onpointercancel=()=>{drag=null;};

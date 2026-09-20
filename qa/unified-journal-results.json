@@ -1,5 +1,5 @@
 {
-  "date": "2026-09-20T17:32:20.991Z",
+  "date": "2026-09-20T17:46:54.587Z",
   "checks": [
     "persistent single book; ship click removed; 75% sailing and camera unchanged; inline name Enter/Escape; mileage; independent preview rotation",
     "nine free skins and live shared preview; unknown ornaments hidden; annotation retained",
@@ -12,12 +12,12 @@
   "errors": [],
   "resources": {
     "before": {
-      "timestamp": "2026-09-20T17:32:03.342Z",
-      "fps": 20.199596008079844,
-      "cpuMeanMs": 1.3356435623499427,
-      "cpuP95Ms": 2.0999999940395355,
-      "calls": 214,
-      "triangles": 24352,
+      "timestamp": "2026-09-20T17:46:37.138Z",
+      "fps": 20.132756592979455,
+      "cpuMeanMs": 1.4148514863878194,
+      "cpuP95Ms": 2.300000011920929,
+      "calls": 295,
+      "triangles": 30434,
       "geometries": 52,
       "textures": 3,
       "programs": 17,
@@ -28,16 +28,16 @@
       "period": "day",
       "weather": "clear",
       "aurora": false,
-      "jsHeapBytes": 27263027,
-      "totalFrames": 303
+      "jsHeapBytes": 30108895,
+      "totalFrames": 302
     },
     "after": {
-      "timestamp": "2026-09-20T17:32:18.392Z",
-      "fps": 20.13275659297946,
-      "cpuMeanMs": 1.539603963641837,
-      "cpuP95Ms": 2.399999976158142,
-      "calls": 214,
-      "triangles": 24352,
+      "timestamp": "2026-09-20T17:46:52.196Z",
+      "fps": 19.999600007999845,
+      "cpuMeanMs": 1.6120000049471854,
+      "cpuP95Ms": 2.5,
+      "calls": 295,
+      "triangles": 30434,
       "geometries": 52,
       "textures": 3,
       "programs": 17,
@@ -48,8 +48,8 @@
       "period": "day",
       "weather": "clear",
       "aurora": false,
-      "jsHeapBytes": 20739161,
-      "totalFrames": 606
+      "jsHeapBytes": 19619953,
+      "totalFrames": 604
     }
   }
 }

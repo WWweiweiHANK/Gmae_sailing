@@ -1,5 +1,14 @@
 # 实际验证记录 · 2026-09-17
 
+## 2026-09-21 纸角翻页与首次卡顿
+
+- qa/journal-smoothness.cjs 先复现一次翻页重复替换固定纸页 5 次，修复后为 2 次；回归要求禁止把大图 data URL 继续置于继承的 CSS 变量。qa/journal-turning.cjs 验证正反页内容、无残留封面控件、角落按钮触发、窄屏和减少动画。
+- 首次卡顿通过 Chrome DevTools timeline 定位：UpdateLayoutTree 约 68ms（255 个元素），图片解码约 9ms。只预解码图片仍有约 68ms 长任务；只将全局 --accessory-sheet 改为普通 CSS 背景图片规则后，对照实验最大 rAF 间隔约 8.5ms、无长任务。最终采用后者，不增加 Blob、联网资源或依赖。
+- 最终 qa/journal-turn-performance.cjs 顺序对比 0610388 和当前网页，各 8 次前后翻页，1100×800、Headless Edge、同机约 120Hz rAF：旧版首次点击同步处理 73.9ms，最大 rAF 间隔 75.1ms；新版首次 2.1ms、8.5ms。后续 7 次新版最大间隔 8.4–8.5ms，8 次未观察到超过 33.4ms 的间隔。独立 Playwright 点击回归样本最大间隔 25.1ms。样本受浏览器、输入方式、机器和缓存影响，并非 EXE／所有设备帧率保证；rAF 间隔不是完整 GPU 耗时或海洋帧率。原始记录见 qa/journal-turn-performance.json 和 journal-smoothness-*.json。
+- 普通翻页 620ms、书签跳转 700ms 使用单一缓动；真实 animation.finished 决定收尾，取消固定延时早收尾与三次快翻。图片、船体、存档保持现有资源；准备页保留事件处理，画布复用已渲染像素。截图 journal-corner-hover.png、journal-turn-mid.png、journal-corner-open.png 已目视检查。
+- 最终 94 项逻辑测试、统一手账浏览器回归及页面替换检查通过；30 次减少动画开合后几何／纹理／程序保持 52／3／17，DOM／Audio 未增长，无 pageerror。GM 网页、QA、GM 桌面前端通过；Tauri release 最终构建通过（1m22s），交付 outputs/Tiny-Tides-GM-2026-09-21-corners.exe，7140864 字节，SHA256 04A929CFA1B4546F3D2F4DA6B768EFA0B9B50F5BC05E876FBC21305797F24A55。旧包保留，本轮未运行 EXE 原生交互和多显示器回归。
+
+
 ## 2026-09-21 字体、图标与翻页修复
 
 - 新增 qa/journal-turning.cjs：先复现翻动纸张两面页码为 02／02 的失败，修复后验证向前 02／03、向后 03／02。另验证封面背面对应当前左页、开封面前不提前显示固定左页、封面旋转不淡出、完成后无残留控件副本、阅读时平面字体、隐藏外侧页叠边框、九款皮肤无常驻名称且保留无障碍名称；小窗口与减少动画开合通过。

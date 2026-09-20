@@ -1,0 +1,118 @@
+{
+  "before": [
+    {
+      "clickMs": 73.90000000596046,
+      "durationMs": 843.8000000059601,
+      "p95RafGapMs": 8.400000000000091,
+      "maxRafGapMs": 75.10000000000036,
+      "gapsOver33ms": 1
+    },
+    {
+      "clickMs": 1.699999988079071,
+      "durationMs": 772.1999999999998,
+      "p95RafGapMs": 8.400000000000546,
+      "maxRafGapMs": 8.5,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 2.300000011920929,
+      "durationMs": 774.9000000119213,
+      "p95RafGapMs": 8.400000000000546,
+      "maxRafGapMs": 8.599999999999454,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 1.7999999821186066,
+      "durationMs": 770.8999999940397,
+      "p95RafGapMs": 8.400000000000546,
+      "maxRafGapMs": 8.599999999999454,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 2,
+      "durationMs": 771.2000000178814,
+      "p95RafGapMs": 8.399999999999636,
+      "maxRafGapMs": 8.5,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 1.7000000178813934,
+      "durationMs": 771.2000000119206,
+      "p95RafGapMs": 8.400000000001455,
+      "maxRafGapMs": 8.600000000000364,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 2.5,
+      "durationMs": 770.7999999940403,
+      "p95RafGapMs": 8.400000000001455,
+      "maxRafGapMs": 8.5,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 1.7999999821186066,
+      "durationMs": 776.9999999940392,
+      "p95RafGapMs": 8.399999999999636,
+      "maxRafGapMs": 8.5,
+      "gapsOver33ms": 0
+    }
+  ],
+  "after": [
+    {
+      "clickMs": 2.0999999940395355,
+      "durationMs": 650.8999999880789,
+      "p95RafGapMs": 8.400000000000091,
+      "maxRafGapMs": 8.5,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 0.800000011920929,
+      "durationMs": 626.3000000119209,
+      "p95RafGapMs": 8.400000000000091,
+      "maxRafGapMs": 8.5,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 1.7000000178813934,
+      "durationMs": 625.6000000119211,
+      "p95RafGapMs": 8.5,
+      "maxRafGapMs": 8.5,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 1.0999999940395355,
+      "durationMs": 631.8999999999996,
+      "p95RafGapMs": 8.400000000000546,
+      "maxRafGapMs": 8.5,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 1.199999988079071,
+      "durationMs": 626.1000000000004,
+      "p95RafGapMs": 8.400000000000546,
+      "maxRafGapMs": 8.5,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 0.800000011920929,
+      "durationMs": 632.0000000119207,
+      "p95RafGapMs": 8.400000000000546,
+      "maxRafGapMs": 8.400000000000546,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 1.2000000178813934,
+      "durationMs": 628.3000000059601,
+      "p95RafGapMs": 8.400000000000546,
+      "maxRafGapMs": 8.400000000000546,
+      "gapsOver33ms": 0
+    },
+    {
+      "clickMs": 0.5999999940395355,
+      "durationMs": 626.1999999940399,
+      "p95RafGapMs": 8.400000000001455,
+      "maxRafGapMs": 8.5,
+      "gapsOver33ms": 0
+    }
+  ]
+}

@@ -21,7 +21,7 @@ test('boat lights follow smooth time-of-day transitions, not daytime rain, and s
 });
 test('boat size clamps invalid settings and survives skin changes without moving mounts',()=>{
  const boat=modelModule.createBoatModel(),mount=boat.mounts.deck,position=mount.position.clone();
- assert.equal(boat.setSize(NaN),.8);assert.equal(boat.setSize(-1),.5);assert.equal(boat.setSize(9),1);
+ assert.equal(boat.setSize(),.75);assert.equal(boat.setSize(NaN),.75);assert.equal(boat.setSize(-1),.5);assert.equal(boat.setSize(9),1);
  boat.setSize(.65);boat.setSkin('gentle');assert.deepEqual(boat.ship.scale.toArray(),[.65,.65,.65]);assert.equal(boat.mounts.deck,mount);assert.deepEqual(mount.position,position);
  const night={fromPeriod:'night',period:'night',periodBlend:1};boat.updateLighting(night,0);const first=boat.materials.glass.emissiveIntensity;boat.updateLighting(night,2);assert.notEqual(first,boat.materials.glass.emissiveIntensity);assert.ok(Math.abs(first-boat.materials.glass.emissiveIntensity)<.1);
 });

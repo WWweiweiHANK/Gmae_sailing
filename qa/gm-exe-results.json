@@ -1,0 +1,13 @@
+{
+  "date": "2026-09-20T15:41:12.233Z",
+  "exe": "C:\\Users\\ww\\Documents\\Codex\\2026-09-16\\chatgpt-conversation-6aaa8375-fa3c-83ec-8afe\\outputs\\Tiny-Tides-GM-2026-09-20.exe",
+  "browser": "153.0.4234.48",
+  "checks": [
+    "native EXE, fixed 75%, no size UI, old 100% preference ignored",
+    "GM whale sighting completes into a real unread notebook",
+    "EXE notebook choice saves, closes to sea, GM whale response remembers the choice",
+    "skin change and reload keep 75% and both journal entries"
+  ],
+  "errors": [],
+  "rendererCount": 1
+}

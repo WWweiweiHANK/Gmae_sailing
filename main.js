@@ -102,11 +102,7 @@ waterMat.onBeforeCompile=shader=>{shader.uniforms.uRain=waterRain;shader.uniform
 `);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=auroraWaterLight(vSeaPosition,uSeaTime)*uAuroraGlow;\ntotalEmissiveRadiance+=encounterBiolight(vSeaPosition,uSeaTime);');};
 const water=mesh(wg,waterMat);water.castShadow=false;
 const boat=createBoatModel(store.read().shipCustomization.skinId),ship=boat.ship;scene.add(ship);
-const sizeSlider=document.querySelector('#boat-size'),sizeValue=document.querySelector('#boat-size-value');
-function applyBoatSize(value){const size=boat.setSize(value);sizeSlider.value=String(Math.round(size*100));sizeValue.value=sizeSlider.value+'%';}
-let savedBoatSize;try{const saved=localStorage.getItem('tiny-tides-boat-size-v1');if(saved!==null)savedBoatSize=Number(saved);}catch{}
-applyBoatSize(savedBoatSize);
-sizeSlider.addEventListener('input',()=>{applyBoatSize(Number(sizeSlider.value)/100);try{localStorage.setItem('tiny-tides-boat-size-v1',String(ship.scale.x));}catch{document.querySelector('#ship-notice').textContent='大小已应用，但本机保存失败。';}});
+boat.setSize();
 const {hull:hullMat,roof:roofMat,stripe:stripeMat}=boat.materials;
 const wingMat=mat(0xf9fbf5,{side:THREE.DoubleSide});const wingTipMat=mat(0xb0c1c6,{side:THREE.DoubleSide});const birds=[];
 for(let i=0;i<4;i++){
@@ -173,7 +169,7 @@ if(typeof __GM__!=='undefined'&&__GM__){
  const controls=document.querySelector('#gm-controls'),select=document.querySelector('#gm-event'),button=document.querySelector('#gm-trigger');controls.hidden=false;
  for(const encounter of encounterCatalog)select.add(new Option(encounter.name,encounter.id));
  button.addEventListener('click',()=>{const encounter=select.value==='random'?encounterCatalog[Math.floor(Math.random()*encounterCatalog.length)]:encounterCatalog.find(item=>item.id===select.value);if(!encounter)return;
-  environment.stage({period:encounter.conditions.time[0],weather:encounter.conditions.weather[0]});const result=encounterDirector.previewEncounter(encounter.id,encounterEnvironment(environment.snapshot()));document.querySelector('#status').textContent=result==='started'?`GM：${encounter.name}已出现`:`GM：${encounter.name}未能出现`;
+  environment.stage({period:encounter.conditions.time[0],weather:encounter.conditions.weather[0]});const result=encounterDirector.stageEncounter(encounter.id,encounterEnvironment(environment.snapshot()));document.querySelector('#status').textContent=result==='started'?`GM：${encounter.name}已出现，结束后写入日志`:`GM：${encounter.name}未能出现`;
  });
 }
 if(typeof __DEV__!=='undefined'&&__DEV__){

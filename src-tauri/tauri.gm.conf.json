@@ -1,0 +1,3 @@
+{
+  "build": {"beforeBuildCommand": "npm run desktop:frontend:gm"}
+}

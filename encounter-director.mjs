@@ -22,10 +22,10 @@ export function createEncounterDirector({store,bus,shipName,intents=null,random=
   if(state.time<state.quietUntil)return 'quiet';if(e.tier==='wonder'&&state.time<state.wonderUntil)return 'cooldown';
   if(state.time<(state.cooldowns[e.id]??0))return 'cooldown';if(state.lastId===e.id)return 'repeat';if(state.lastCategory===e.category&&state.categoryStreak>=2)return 'category';return null;
  }
- function startEncounter(id,env=latestEnv,{ignoreTiming=false,preview=false}={}){
-  const e=encounterCatalog.find(e=>e.id===id),blocked=reason(e,env,ignoreTiming,preview);if(blocked)return blocked;
+ function startEncounter(id,env=latestEnv,{ignoreTiming=false,preview=false,staged=false}={}){
+  const e=encounterCatalog.find(e=>e.id===id),blocked=reason(e,env,ignoreTiming,preview||staged);if(blocked)return blocked;
   const slot=e.tier==='ambient'?'ambient':'major',duration=range([e.minDuration,e.maxDuration]);
-  slots.set(slot,{id,slot,elapsed:0,duration,phase:'enter',seen:false,firstTime:false,seenCount:0,badgeUnlocked:false,souvenirUnlocked:false,startTime:now().toISOString(),weather:env.weather,timeOfDay:env.period,shipName:shipName(),seed:random(),persistentVisitorId:e.persistentVisitorId,preview});
+  slots.set(slot,{id,slot,elapsed:0,duration,phase:'enter',seen:false,firstTime:false,seenCount:0,badgeUnlocked:false,souvenirUnlocked:false,startTime:now().toISOString(),weather:env.weather,timeOfDay:env.period,shipName:shipName(),seed:random(),persistentVisitorId:e.persistentVisitorId,preview,staged});
   if(preview)return 'started';
   state.lastId=id;state.categoryStreak=state.lastCategory===e.category?state.categoryStreak+1:1;state.lastCategory=e.category;state.cooldowns[id]=state.time+e.cooldown*(config.cooldownScale??1);
   state.next[e.tier]=state.time+range(config.windows[e.tier]);if(e.tier==='wonder')state.wonderUntil=state.time+config.wonderGap;
@@ -62,13 +62,14 @@ export function createEncounterDirector({store,bus,shipName,intents=null,random=
   for(const e of candidates){draw-=weight(e);if(draw<=0){selected=e;break;}}
   state.bags[tier]=bag.filter(id=>id!==(selected?.id??null));if(selected)startEncounter(selected.id,env);
  }
- return {startEncounter,endEncounter,confirmVisible,unlockSouvenir,save:persist,
-  previewEncounter(id,env=latestEnv){const e=encounterCatalog.find(e=>e.id===id);if(!e)return 'invalid';for(const a of [...slots.values()])endEncounter(a.id,true);return startEncounter(id,env,{preview:true});},
+ function stageEncounter(id,env=latestEnv,preview=false){if(!encounterCatalog.some(e=>e.id===id))return 'invalid';for(const a of [...slots.values()])endEncounter(a.id,true);return startEncounter(id,env,{preview,staged:true});}
+ return {startEncounter,endEncounter,confirmVisible,unlockSouvenir,save:persist,stageEncounter,
+  previewEncounter:(id,env)=>stageEncounter(id,env,true),
   setPacing(next){config=next;for(const tier of ['ambient','special','wonder'])state.next[tier]=state.time+range(config.windows[tier]);limitWaits();persist();},
   active:()=>[...slots.values()].map(a=>({...a})),snapshot:()=>({...structuredClone(data),activeEncounterSlots:[...slots.values()].map(a=>({...a})),lastCompleted}),
   advance(dt,env,running=true){latestEnv=env;if(!running||!Number.isFinite(dt)||dt<=0||dt>30)return;state.time+=dt;sinceSave+=dt;
    for(const a of [...slots.values()]){a.elapsed+=dt;const e=encounterCatalog.find(e=>e.id===a.id);
-    if(!a.preview&&!a.interrupted&&!condition(e,env)){a.interrupted=true;a.exitAt=a.elapsed;}
+    if(!a.preview&&!a.staged&&!a.interrupted&&!condition(e,env)){a.interrupted=true;a.exitAt=a.elapsed;}
     a.phase=a.interrupted||a.elapsed>a.duration-4?'exit':a.elapsed<4?'enter':'play';
     if(a.interrupted?a.elapsed-a.exitAt>=config.exitSeconds:a.elapsed>=a.duration)endEncounter(a.id,!!a.interrupted);
    }

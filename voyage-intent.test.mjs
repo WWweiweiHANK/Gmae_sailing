@@ -4,9 +4,21 @@ import {createGameSave,GAME_SAVE_KEY} from './game-save.mjs';
 import {createJournal} from './journal/journal-store.mjs';
 import {createWorldEventBus} from './badges.mjs';
 import {createEncounterDirector} from './encounter-director.mjs';
+import {encounterCatalog} from './encounter-catalog.mjs';
 import * as module from './voyage-intents.mjs';
 const event=(id,count=1)=>({encounterId:id,startTime:`2026-09-20T10:${String(count).padStart(2,'0')}:00Z`,endTime:`2026-09-20T10:${String(count).padStart(2,'0')}:40Z`,shipName:'小雨号',weather:'clear',timeOfDay:'day',firstTime:count===1,seenCount:count});
 function setup(){let seconds=0;const disk=new Map(),storage={getItem:k=>disk.get(k)??null,setItem:(k,v)=>disk.set(k,v)},store=createGameSave(storage),bus=createWorldEventBus();assert.equal(typeof module.createVoyageIntentManager,'function');const intents=module.createVoyageIntentManager({store,total:()=>seconds,random:()=>0}),journal=createJournal({store,bus,intents});return {store,bus,intents,journal,storage,advance:n=>seconds+=n};}
+test('GM staged events complete through the real journal pipeline; interrupted staging writes no record',()=>{
+ const {store,bus,intents,journal}=setup();let at=0;
+ const d=createEncounterDirector({store,bus,intents,shipName:()=> '小雨号',random:()=>.5,now:()=>new Date(1790000000000+at++*1000)}),env={period:'day',weather:'clear',rain:0};
+ for(const id of ['giant_whale_surface',...encounterCatalog.filter(e=>e.id!=='giant_whale_surface').map(e=>e.id)]){
+  const before=journal.entries().length;assert.equal(d.stageEncounter(id,env),'started');assert.equal(journal.entries().length,before);
+  d.confirmVisible(id);d.advance(30,env);d.advance(30,env);assert.equal(journal.entries().at(-1).encounterId,id);
+ }
+ const count=journal.entries().length;assert.equal(count,encounterCatalog.length);
+ d.stageEncounter('giant_whale_shadow',env);d.confirmVisible('giant_whale_shadow');d.stageEncounter('pink_dolphin',env);assert.equal(journal.entries().length,count);
+ d.confirmVisible('pink_dolphin');d.endEncounter('pink_dolphin',true);assert.equal(journal.entries().length,count);
+});
 test('clues only, atomic permanent choice, overrides and old-save migration',()=>{
  const {bus,journal:j,intents,store,storage}=setup();
  for(const e of [event('dolphin_companion'),event('pink_dolphin'),event('pink_dolphin',2),event('giant_whale_shadow')])bus.emitWorldEvent('encounter_completed',e);

@@ -14,14 +14,10 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   }
   assert.ok(results[2].lighting.point>results[4].lighting.point);assert.ok(results[3].lighting.point>results[2].lighting.point);assert.ok(results[3].lighting.windows>.7);
   const state=()=>page.evaluate(()=>window.oceanTools.get_ocean_state.execute({}));
-  assert.equal((await state()).boatSize,.8);
-  for(const size of [50,100,65]){
-   await page.locator('#boat-size').fill(String(size));await page.locator('#boat-size').dispatchEvent('input');assert.equal((await state()).boatSize,size/100);
-   assert.equal(await page.locator('#boat-size-value').textContent(),size+'%');
-  }
-  await page.locator('[data-skin="gentle"]').click();assert.equal((await state()).boatSize,.65);
+  assert.equal((await state()).boatSize,.75);assert.equal(await page.locator('#boat-size').count(),0);
+  await page.locator('[data-skin="gentle"]').click();assert.equal((await state()).boatSize,.75);
   await page.setViewportSize({width:560,height:540});await page.screenshot({path:'qa/boat-size-control.png'});assert.equal(await page.locator('#ship-panel').evaluate(e=>e.scrollHeight<=e.clientHeight),true);
-  await page.reload();await page.waitForFunction(()=>document.querySelector('#loading').hidden);assert.equal((await state()).boatSize,.65);assert.deepEqual(errors,[]);
+  await page.evaluate(()=>localStorage.setItem('tiny-tides-boat-size-v1','1'));await page.reload();await page.waitForFunction(()=>document.querySelector('#loading').hidden);assert.equal((await state()).boatSize,.75);assert.deepEqual(errors,[]);
   await fs.writeFile('qa/boat-lighting-results.json',JSON.stringify({results,errors},null,2)+'\n');console.log({results,errors});
  }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

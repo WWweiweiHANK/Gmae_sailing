@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {boatSkin} from './boat-skins.mjs';
-export const BOAT_SIZE={default:.8,min:.5,max:1};
+export const BOAT_SIZE={default:.75,min:.5,max:1};
 
 // One moving root, one material set and pooled primitives. Only skin-specific hull/cabin
 // surfaces are replaced and disposed; the nameplate, light and encounter anchors survive.
